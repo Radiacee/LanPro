@@ -1,3 +1,4 @@
 # This file lists the dependencies required for the project.
 antlr4-python3-runtime
 pytest
+rich
