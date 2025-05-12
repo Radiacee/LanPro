@@ -2,7 +2,7 @@ class Token:
     def __init__(self, type, value, position=None):
         self.type = type
         self.value = value
-        self.position = position  # Track the position of the token in the source code
+        self.position = position
 
     def __repr__(self):
         return f'Token({self.type}, {self.value}, position={self.position})'
@@ -44,7 +44,8 @@ class Tokenizer:
                 continue
 
             if self.current_char.isalpha():
-                self.tokens.append(self.identifier())
+                token = self.identifier_or_keyword()
+                self.tokens.append(token)
                 continue
 
             if self.current_char.isdigit():
@@ -63,17 +64,28 @@ class Tokenizer:
 
         return self.tokens
 
-    def identifier(self):
+    def identifier_or_keyword(self):
         result = ''
-        start_position = self.position  # Track the starting position of the identifier
+        start_position = self.position
         while self.current_char is not None and (self.current_char.isalnum() or self.current_char == '_'):
             result += self.current_char
             self.advance()
-        return Token('IDENTIFIER', result, start_position)
+        
+        # Define keywords and their token types
+        keywords = {
+            'if': 'IF',
+            'else': 'ELSE',
+            'while': 'WHILE',
+            'for': 'FOR'
+        }
+        
+        # Return keyword token if it’s a keyword, otherwise an IDENTIFIER
+        token_type = keywords.get(result, 'IDENTIFIER')
+        return Token(token_type, result, start_position)
 
     def number(self):
         result = ''
-        start_position = self.position  # Track the starting position of the number
+        start_position = self.position
         while self.current_char is not None and self.current_char.isdigit():
             result += self.current_char
             self.advance()
@@ -81,30 +93,29 @@ class Tokenizer:
 
     def string(self):
         result = ''
-        start_position = self.position  # Track the starting position of the string
-        self.advance()  # Skip the opening quote
+        start_position = self.position
+        self.advance()  # Skip opening quote
         while self.current_char is not None and self.current_char != '"':
             result += self.current_char
             self.advance()
-        if self.current_char != '"':  # Ensure the string is properly closed
+        if self.current_char != '"':
             self.error("Unterminated string literal")
-        self.advance()  # Skip the closing quote
-        return Token('STRING', result, start_position)
+        self.advance()  # Skip closing quote
+        return Token('STRING', f'"{result}"', start_position)  # Store with quotes
 
     def operator(self):
-        start_position = self.position  # Track the position of the operator
+        start_position = self.position
         char = self.current_char
         self.advance()
 
-        # Handle two-character operators (e.g., >=, <=, ==, !=)
+        # Handle two-character operators
         if char in ['<', '>', '=', '!'] and self.current_char == '=':
             result = char + self.current_char
             self.advance()
-            print(f"Tokenized operator: {result} at position {start_position}")  # Debugging
+            print(f"Tokenized operator: {result} at position {start_position}")
             return Token('OPERATOR', result, start_position)
 
-        # Handle single-character operators
-        print(f"Tokenized operator: {char} at position {start_position}")  # Debugging
+        print(f"Tokenized operator: {char} at position {start_position}")
         return Token('OPERATOR', char, start_position)
 
 
