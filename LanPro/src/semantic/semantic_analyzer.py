@@ -25,7 +25,7 @@ class SemanticAnalyzer:
             if not isinstance(node['body'], list):
                 raise Exception(f"Expected 'body' of Block node to be a list, but got {type(node['body'])}")
             for statement in node['body']:
-                self.visit(statement)
+                self.visit(statement)  # Ensure 'statement' is only used here
         elif node['type'] == 'FunctionCall':
             for argument in node['arguments']:
                 self.visit(argument)

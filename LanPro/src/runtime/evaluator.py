@@ -113,5 +113,5 @@ class Evaluator:
             raise ValueError(f"Unknown function: {function_name}")
 
     def run(self, program):
-        for mentstatement in program['body']:
+        for statement in program['body']:
             self.evaluate(statement)
