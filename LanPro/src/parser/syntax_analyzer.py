@@ -217,6 +217,9 @@ class SyntaxAnalyzer:
         elif self.current_token.type == 'STRING':  # Handle string literals
             left = {'type': 'Literal', 'value': self.current_token.value}
             self.advance()
+        elif self.current_token.type == 'NULL':
+            left = {'type': 'NULL', 'value': None}
+            self.advance()
         elif self.current_token.type == 'OPERATOR' and self.current_token.value == '(':
             self.eat('OPERATOR')  # Consume the '('
             left = self.expression()  # Recursively parse the inner expression

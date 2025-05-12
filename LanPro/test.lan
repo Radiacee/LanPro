@@ -1,2 +1,5 @@
-name = input(Alice);
-print("Hello," + name);
+x = 10;
+x = null;
+print(x);
+x = 20;
+print(x);

@@ -32,7 +32,7 @@ class SemanticAnalyzer:
         elif node['type'] == 'BinaryOperation':
             self.visit(node['left'])
             self.visit(node['right'])
-        elif node['type'] == 'Literal' or node['type'] == 'Identifier':
+        elif node['type'] == 'Literal' or node['type'] == 'Identifier' or node['type'] == 'NULL':
             pass  # No semantic checks needed for literals or identifiers
         elif node['type'] == 'FunctionDeclaration':
             self.analyze_function_declaration(node)

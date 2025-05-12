@@ -16,12 +16,13 @@ class Evaluator:
                 return value
             elif node['type'] == 'Identifier':  # Handle Identifier nodes
                 return self.memory_manager.get(node['name'])
+            elif node['type'] == 'NULL':  # Handle null literal as unset (None)
+                return None
             elif node['type'] == 'BinaryOperation':  # Handle BinaryOperation nodes
                 left = self.evaluate(node['left'])
                 right = self.evaluate(node['right'])
                 operator = node['operator']
                 if operator == '+':
-                    # Handle string concatenation if either operand is a string
                     if isinstance(left, str) or isinstance(right, str):
                         return str(left) + str(right)
                     return left + right
@@ -46,7 +47,14 @@ class Evaluator:
                 else:
                     raise ValueError(f"Unknown operator: {operator}")
             elif node['type'] == 'AssignmentStatement':
-                self.memory_manager.allocate(node['identifier'], self.evaluate(node['value']))
+                value = self.evaluate(node['value'])
+                if value is None:  # Unset the variable to None
+                    if self.memory_manager.exists(node['identifier']):
+                        self.memory_manager.update(node['identifier'], None)
+                    else:
+                        self.memory_manager.allocate(node['identifier'], None)
+                else:
+                    self.memory_manager.allocate(node['identifier'], value)
             elif node['type'] == 'FunctionCall':
                 return self.evaluate_function(node['name'], node['arguments'])
             elif node['type'] == 'FunctionDeclaration':
@@ -89,32 +97,31 @@ class Evaluator:
             evaluated_args = [self.evaluate(arg) for arg in arguments]
             print(*evaluated_args)
         elif function_name == "input":
-            if not arguments:  # No arguments provided to input()
+            if not arguments:
                 return input()
             raise ValueError("input() function does not accept arguments")
+        elif function_name == "free":
+            if len(arguments) != 1 or not isinstance(arguments[0], dict) or arguments[0]['type'] != 'Identifier':
+                raise ValueError("free() expects a single variable name as argument")
+            var_name = arguments[0]['name']
+            self.memory_manager.deallocate(var_name)
         elif function_name in self.functions:
-            # Get the function definition
             function = self.functions[function_name]
             parameters = function['parameters']
             body = function['body']
 
-            # Check if the number of arguments matches the number of parameters
             if len(arguments) != len(parameters):
                 raise ValueError(f"Function '{function_name}' expects {len(parameters)} arguments, but got {len(arguments)}.")
 
-            # Temporarily allocate arguments to parameters
             original_variables = self.memory_manager.variables.copy()
             for param, arg in zip(parameters, arguments):
                 self.memory_manager.allocate(param, self.evaluate(arg))
 
-            # Evaluate the function body
             result = None
             for statement in body['body']:
                 result = self.evaluate(statement)
 
-            # Restore original variables
             self.memory_manager.variables = original_variables
-
             return result
         else:
             raise ValueError(f"Unknown function: {function_name}")
@@ -122,3 +129,4 @@ class Evaluator:
     def run(self, program):
         for statement in program['body']:
             self.evaluate(statement)
+            self.memory_manager.run_gc()  # Run GC after each statement

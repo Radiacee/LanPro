@@ -7,7 +7,6 @@ class Token:
     def __repr__(self):
         return f'Token({self.type}, {self.value}, position={self.position})'
 
-
 class Tokenizer:
     def __init__(self, source_code):
         self.source_code = source_code
@@ -43,6 +42,11 @@ class Tokenizer:
                 self.skip_comment()
                 continue
 
+            # Check for 'null' before general identifiers
+            if self.current_char == 'n' and self.peek_next(4) == 'null':
+                self.tokens.append(self.null_literal())
+                continue
+
             if self.current_char.isalpha():
                 token = self.identifier_or_keyword()
                 self.tokens.append(token)
@@ -64,6 +68,12 @@ class Tokenizer:
 
         return self.tokens
 
+    def peek_next(self, n):
+        """Peek ahead n characters without advancing."""
+        if self.position + n <= len(self.source_code):
+            return self.source_code[self.position:self.position + n]
+        return ''
+
     def identifier_or_keyword(self):
         result = ''
         start_position = self.position
@@ -71,7 +81,6 @@ class Tokenizer:
             result += self.current_char
             self.advance()
         
-        # Define keywords and their token types
         keywords = {
             'if': 'IF',
             'else': 'ELSE',
@@ -79,7 +88,6 @@ class Tokenizer:
             'for': 'FOR'
         }
         
-        # Return keyword token if it’s a keyword, otherwise an IDENTIFIER
         token_type = keywords.get(result, 'IDENTIFIER')
         return Token(token_type, result, start_position)
 
@@ -101,14 +109,13 @@ class Tokenizer:
         if self.current_char != '"':
             self.error("Unterminated string literal")
         self.advance()  # Skip closing quote
-        return Token('STRING', f'"{result}"', start_position)  # Store with quotes
+        return Token('STRING', f'"{result}"', start_position)
 
     def operator(self):
         start_position = self.position
         char = self.current_char
         self.advance()
 
-        # Handle two-character operators
         if char in ['<', '>', '=', '!'] and self.current_char == '=':
             result = char + self.current_char
             self.advance()
@@ -118,6 +125,13 @@ class Tokenizer:
         print(f"Tokenized operator: {char} at position {start_position}")
         return Token('OPERATOR', char, start_position)
 
+    def null_literal(self):
+        start_position = self.position
+        self.advance()  # Skip 'n'
+        self.advance()  # Skip 'u'
+        self.advance()  # Skip 'l'
+        self.advance()  # Skip 'l'
+        return Token('NULL', 'null', start_position)
 
 def main():
     source_code = 'x = 10; if (x >= 5) { print("hello"); } else { print("world"); }'
@@ -125,7 +139,6 @@ def main():
     tokens = tokenizer.tokenize()
     for token in tokens:
         print(token)
-
 
 if __name__ == "__main__":
     main()
