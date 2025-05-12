@@ -34,12 +34,24 @@ class SyntaxAnalyzer:
             return self.for_statement()
         elif self.current_token.type == 'IDENTIFIER' and self.current_token.value == 'function':  # Handle 'function' keyword
             return self.function_declaration()
+        elif self.current_token.type == 'IDENTIFIER' and self.current_token.value == 'return':  # Handle 'return' keyword
+            return self.return_statement()
         elif self.current_token.type == 'IDENTIFIER' and self.peek() and self.peek().type == 'OPERATOR' and self.peek().value == '=':
             return self.assignment_statement()
         elif self.current_token.type == 'IDENTIFIER' and self.peek() and self.peek().type == 'OPERATOR' and self.peek().value == '(':
             return self.function_call_statement()
         else:
             return self.expression_statement()
+
+    def return_statement(self):
+        print(f"Parsing return statement at position {self.current_token.position}")  # Debugging
+        self.eat('IDENTIFIER')  # Consume the 'return' keyword
+        value = self.expression()  # Parse the return value
+        self.eat('OPERATOR')  # Ensure the statement ends with a semicolon
+        return {
+            'type': 'ReturnStatement',
+            'value': value
+        }
 
     def assignment_statement(self):
         identifier = self.current_token
@@ -135,7 +147,7 @@ class SyntaxAnalyzer:
         then_branch = self.block()  # Parse the 'then' block
 
         else_branch = None
-        if self.current_token.type == 'ELSE':  # Check for 'ELSE' token
+        if self.current_token is not None and self.current_token.type == 'ELSE':  # Check for 'ELSE' token
             print(f"Parsing elseBranch at position {self.current_token.position}")  # Debugging
             self.eat('ELSE')  # Consume the 'else' keyword
             else_branch = self.block()  # Parse the 'else' block
@@ -188,8 +200,20 @@ class SyntaxAnalyzer:
             left = {'type': 'Literal', 'value': self.current_token.value}
             self.advance()
         elif self.current_token.type == 'IDENTIFIER':
-            left = {'type': 'Identifier', 'name': self.current_token.value}
+            identifier = self.current_token
             self.advance()
+            # Check if this is a function call
+            if self.current_token is not None and self.current_token.type == 'OPERATOR' and self.current_token.value == '(':
+                self.eat('OPERATOR')  # Consume the '('
+                arguments = self.argument_list()  # Parse the arguments
+                self.eat('OPERATOR')  # Consume the ')'
+                left = {
+                    'type': 'FunctionCall',
+                    'name': identifier.value,
+                    'arguments': arguments
+                }
+            else:
+                left = {'type': 'Identifier', 'name': identifier.value}
         elif self.current_token.type == 'STRING':  # Handle string literals
             left = {'type': 'Literal', 'value': self.current_token.value}
             self.advance()

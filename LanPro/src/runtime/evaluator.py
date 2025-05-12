@@ -1,6 +1,7 @@
 class Evaluator:
     def __init__(self, memory_manager):
         self.memory_manager = memory_manager
+        self.functions = {}  # Store user-defined functions
 
     def evaluate(self, node):
         if isinstance(node, int):  # Handle integer literals
@@ -9,7 +10,6 @@ class Evaluator:
             return self.memory_manager.get(node)
         elif isinstance(node, dict):  # Handle AST nodes
             if node['type'] == 'Literal':  # Handle Literal nodes
-                # Convert string literals to their actual value if needed
                 value = node['value']
                 if isinstance(value, str) and value.startswith('"') and value.endswith('"'):
                     return value[1:-1]  # Strip quotes from string literals
@@ -46,9 +46,18 @@ class Evaluator:
                 self.memory_manager.allocate(node['identifier'], self.evaluate(node['value']))
             elif node['type'] == 'FunctionCall':
                 return self.evaluate_function(node['name'], node['arguments'])
+            elif node['type'] == 'FunctionDeclaration':
+                self.functions[node['name']] = {
+                    'parameters': node['parameters'],
+                    'body': node['body']
+                }
+            elif node['type'] == 'ReturnStatement':  # Handle ReturnStatement nodes
+                return self.evaluate(node['value'])
             elif node['type'] == 'Block':
                 for statement in node['body']:
-                    self.evaluate(statement)
+                    result = self.evaluate(statement)
+                    if isinstance(result, dict) and result.get('type') == 'ReturnStatement':
+                        return result  # Propagate return value
             else:
                 return self.evaluate_control_structure(node)
         else:
@@ -76,9 +85,33 @@ class Evaluator:
         if function_name == "print":
             evaluated_args = [self.evaluate(arg) for arg in arguments]
             print(*evaluated_args)
+        elif function_name in self.functions:
+            # Get the function definition
+            function = self.functions[function_name]
+            parameters = function['parameters']
+            body = function['body']
+
+            # Check if the number of arguments matches the number of parameters
+            if len(arguments) != len(parameters):
+                raise ValueError(f"Function '{function_name}' expects {len(parameters)} arguments, but got {len(arguments)}.")
+
+            # Temporarily allocate arguments to parameters
+            original_variables = self.memory_manager.variables.copy()  # Use 'variables' instead of 'memory'
+            for param, arg in zip(parameters, arguments):
+                self.memory_manager.allocate(param, self.evaluate(arg))
+
+            # Evaluate the function body
+            result = None
+            for statement in body['body']:
+                result = self.evaluate(statement)
+
+            # Restore original variables
+            self.memory_manager.variables = original_variables  # Use 'variables' instead of 'memory'
+
+            return result
         else:
             raise ValueError(f"Unknown function: {function_name}")
 
     def run(self, program):
-        for statement in program['body']:
+        for mentstatement in program['body']:
             self.evaluate(statement)
