@@ -1,3 +1,3 @@
-x=10
-x=None
+x = "hi " + 5
+
 print(x)

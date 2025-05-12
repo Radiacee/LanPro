@@ -23,58 +23,52 @@ class SemanticAnalyzer:
                 self.visit(node['elseBranch'])
         elif node['type'] == 'Block':
             if not isinstance(node['body'], list):
-                raise Exception(f"Expected 'body' of Block node to be a list, but got {type(node['body'])}")
+                raise Exception(f"Expected 'body' of Block node to be a list, but got {type(node['body'])} at line {node.get('line', 'unknown')}")
             for statement in node['body']:
-                self.visit(statement)  # Ensure 'statement' is only used here
+                self.visit(statement)
         elif node['type'] == 'FunctionCall':
             for argument in node['arguments']:
                 self.visit(argument)
         elif node['type'] == 'BinaryOperation':
             self.visit(node['left'])
             self.visit(node['right'])
-        elif node['type'] == 'Literal' or node['type'] == 'Identifier' or node['type'] == 'NULL':
-            pass  # No semantic checks needed for literals or identifiers
+        elif node['type'] == 'Literal' or node['type'] == 'Identifier':
+            pass
+        elif node['type'] == 'NULL':
+            pass
         elif node['type'] == 'FunctionDeclaration':
             self.analyze_function_declaration(node)
-        elif node['type'] == 'ReturnStatement':  # Handle ReturnStatement nodes
+        elif node['type'] == 'ReturnStatement':
             self.analyze_return_statement(node)
         else:
-            raise Exception(f"Unknown node type: {node['type']}")
+            raise Exception(f"Unknown node type: {node['type']} at line {node.get('line', 'unknown')}")
 
     def analyze_assignment(self, node):
         variable_name = node['identifier']
         if variable_name in self.declared_variables:
-            # Issue a redeclaration warning
-            self.console.print(f"[bold yellow]Notice:[/bold yellow] Redeclaration warning for variable '{variable_name}'")
+            self.console.print(f"[bold yellow]Notice:[/bold yellow] Redeclaration warning for variable '{variable_name}' at line {node.get('line', 'unknown')}")
         else:
-            # Mark the variable as declared
             self.declared_variables.add(variable_name)
-        self.visit(node['value'])  # Analyze the value being assigned
+        self.visit(node['value'])
 
     def analyze_function_declaration(self, node):
         function_name = node['name']
         if function_name in self.declared_functions:
-            # Issue a redeclaration warning for the function
-            self.console.print(f"[bold yellow]Notice:[/bold yellow] Redeclaration warning for function '{function_name}'")
+            self.console.print(f"[bold yellow]Notice:[/bold yellow] Redeclaration warning for function '{function_name}' at line {node.get('line', 'unknown')}")
         else:
-            # Mark the function as declared
             self.declared_functions.add(function_name)
 
-        # Temporarily add parameters to the declared variables
         original_variables = self.declared_variables.copy()
         for param in node['parameters']:
             self.declared_variables.add(param)
 
-        # Analyze the function body
-        if node['body']['type'] == 'Block':  # Ensure the body is a Block node
+        if node['body']['type'] == 'Block':
             self.visit(node['body'])
         else:
-            raise Exception(f"Expected a Block node for function body, but got {node['body']['type']}")
+            raise Exception(f"Expected a Block node for function body, but got {node['body']['type']} at line {node.get('line', 'unknown')}")
 
-        # Restore the original declared variables
         self.declared_variables = original_variables
 
     def analyze_return_statement(self, node):
-        # Analyze the return value
         self.console.print("[cyan]Analyzing return statement...[/cyan]")
         self.visit(node['value'])

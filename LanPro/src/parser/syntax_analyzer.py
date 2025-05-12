@@ -15,7 +15,6 @@ class SyntaxAnalyzer:
     def program(self):
         statements = []
         while self.position < len(self.tokens) and self.current_token is not None:
-            # Skip invalid tokens (e.g., '}' outside block context)
             if self.current_token.type == 'OPERATOR' and self.current_token.value in ['}', ';']:
                 self.advance()
                 continue
@@ -24,17 +23,17 @@ class SyntaxAnalyzer:
 
     def statement(self):
         if self.current_token is None:
-            raise SyntaxError("Unexpected end of input while parsing a statement.")
-        print(f"Parsing statement at position {self.current_token.position}, token: {self.current_token}")  # Debugging
-        if self.current_token.type == 'IF':  # Prioritize 'if' keyword
+            raise SyntaxError(f"Unexpected end of input while parsing a statement at line {self.current_token.line if self.current_token else 'unknown'}")
+        print(f"Parsing statement at position {self.current_token.position}, line {self.current_token.line}, token: {self.current_token}")
+        if self.current_token.type == 'IF':
             return self.if_statement()
-        elif self.current_token.type == 'WHILE':  # Prioritize 'while' keyword
+        elif self.current_token.type == 'WHILE':
             return self.while_statement()
-        elif self.current_token.type == 'FOR':  # Prioritize 'for' keyword
+        elif self.current_token.type == 'FOR':
             return self.for_statement()
-        elif self.current_token.type == 'IDENTIFIER' and self.current_token.value == 'function':  # Handle 'function' keyword
+        elif self.current_token.type == 'IDENTIFIER' and self.current_token.value == 'function':
             return self.function_declaration()
-        elif self.current_token.type == 'IDENTIFIER' and self.current_token.value == 'return':  # Handle 'return' keyword
+        elif self.current_token.type == 'IDENTIFIER' and self.current_token.value == 'return':
             return self.return_statement()
         elif self.current_token.type == 'IDENTIFIER' and self.peek() and self.peek().type == 'OPERATOR' and self.peek().value == '=':
             return self.assignment_statement()
@@ -44,86 +43,88 @@ class SyntaxAnalyzer:
             return self.expression_statement()
 
     def return_statement(self):
-        print(f"Parsing return statement at position {self.current_token.position}")  # Debugging
-        self.eat('IDENTIFIER')  # Consume the 'return' keyword
-        value = self.expression()  # Parse the return value
-        self.eat('OPERATOR')  # Ensure the statement ends with a semicolon
+        print(f"Parsing return statement at position {self.current_token.position}, line {self.current_token.line}")
+        self.eat('IDENTIFIER')
+        value = self.expression()
+        self.eat('OPERATOR')
         return {
             'type': 'ReturnStatement',
-            'value': value
+            'value': value,
+            'line': self.current_token.line if self.current_token else None
         }
 
     def assignment_statement(self):
         identifier = self.current_token
-        self.eat('IDENTIFIER')  # Consume the identifier
-        self.eat('OPERATOR')  # Consume the '=' operator
-        value = self.expression()  # Parse the right-hand side expression
-        self.eat('OPERATOR')  # Ensure the statement ends with a semicolon
+        self.eat('IDENTIFIER')
+        self.eat('OPERATOR')
+        value = self.expression()
+        self.eat('OPERATOR')
         return {
             'type': 'AssignmentStatement',
             'identifier': identifier.value,
-            'value': value
+            'value': value,
+            'line': identifier.line
         }
     
     def function_declaration(self):
-        print(f"Parsing function declaration at position {self.current_token.position}")  # Debugging
-        self.eat('IDENTIFIER')  # Consume the 'function' keyword
+        print(f"Parsing function declaration at position {self.current_token.position}, line {self.current_token.line}")
+        self.eat('IDENTIFIER')
         function_name = self.current_token
-        self.eat('IDENTIFIER')  # Consume the function name
-        self.eat('OPERATOR')  # Consume the '(' operator
+        self.eat('IDENTIFIER')
+        self.eat('OPERATOR')
 
-        # Parse the parameter list
         parameters = []
         if self.current_token.type == 'IDENTIFIER':
             parameters.append(self.current_token.value)
             self.eat('IDENTIFIER')
             while self.current_token.type == 'OPERATOR' and self.current_token.value == ',':
-                self.eat('OPERATOR')  # Consume the ',' operator
+                self.eat('OPERATOR')
                 parameters.append(self.current_token.value)
                 self.eat('IDENTIFIER')
 
-        self.eat('OPERATOR')  # Consume the ')' operator
-        body = self.block()  # Parse the function body
+        self.eat('OPERATOR')
+        body = self.block()
 
         return {
             'type': 'FunctionDeclaration',
             'name': function_name.value,
             'parameters': parameters,
-            'body': body
+            'body': body,
+            'line': function_name.line
         }
 
     def function_call_statement(self):
-        print(f"Parsing function call at position {self.current_token.position}, token: {self.current_token}")  # Debugging
+        print(f"Parsing function call at position {self.current_token.position}, line {self.current_token.line}, token: {self.current_token}")
         function_name = self.current_token
-        self.eat('IDENTIFIER')  # Consume the function name
-        self.eat('OPERATOR')  # Consume the '(' operator
-        arguments = self.argument_list()  # Parse the arguments
-        self.eat('OPERATOR')  # Consume the ')' operator
-        self.eat('OPERATOR')  # Ensure the statement ends with a semicolon
-        print(f"Parsed function call: {function_name.value} with arguments {arguments}")  # Debugging
+        self.eat('IDENTIFIER')
+        self.eat('OPERATOR')
+        arguments = self.argument_list()
+        self.eat('OPERATOR')
+        self.eat('OPERATOR')
+        print(f"Parsed function call: {function_name.value} with arguments {arguments}")
         return {
             'type': 'FunctionCall',
             'name': function_name.value,
-            'arguments': arguments
+            'arguments': arguments,
+            'line': function_name.line
         }
 
     def argument_list(self):
-        print(f"Parsing argument list at position {self.current_token.position}, token: {self.current_token}")  # Debugging
+        print(f"Parsing argument list at position {self.current_token.position}, line {self.current_token.line}, token: {self.current_token}")
         arguments = []
         if self.current_token.type != 'OPERATOR' or self.current_token.value != ')':
-            arguments.append(self.expression())  # Parse the first argument
+            arguments.append(self.expression())
             while self.current_token.type == 'OPERATOR' and self.current_token.value == ',':
-                self.eat('OPERATOR')  # Consume the ',' operator
-                arguments.append(self.expression())  # Parse the next argument
-        print(f"Parsed arguments: {arguments}")  # Debugging
+                self.eat('OPERATOR')
+                arguments.append(self.expression())
+        print(f"Parsed arguments: {arguments}")
         return arguments
 
     def block(self):
-        """Parse a block of statements enclosed in braces."""
         if self.current_token is None or self.current_token.value != '{':
-            raise SyntaxError(f"Expected '{{' but got '{self.current_token.value if self.current_token else 'None'}' at position {self.current_token.position if self.current_token else 'end of input'}")
-        print(f"Entering block at position {self.current_token.position}")  # Debugging
-        self.eat('OPERATOR')  # Consume the opening '{'
+            raise SyntaxError(f"Expected '{{' but got '{self.current_token.value if self.current_token else 'None'}' at position {self.current_token.position}, line {self.current_token.line if self.current_token else 'unknown'}")
+        print(f"Entering block at position {self.current_token.position}, line {self.current_token.line}")
+        self.eat('OPERATOR')
 
         statements = []
         while self.current_token is not None and (self.current_token.type != 'OPERATOR' or self.current_token.value != '}'):
@@ -131,117 +132,118 @@ class SyntaxAnalyzer:
                 raise SyntaxError("Unexpected end of input. Missing closing '}'.")
             statements.append(self.statement())
 
-        print(f"Exiting block at position {self.current_token.position if self.current_token else 'end of input'}")  # Debugging
-        self.eat('OPERATOR')  # Consume the closing '}'
-        return {'type': 'Block', 'body': statements}
-    
+        print(f"Exiting block at position {self.current_token.position}, line {self.current_token.line if self.current_token else 'unknown'}")
+        self.eat('OPERATOR')
+        return {'type': 'Block', 'body': statements, 'line': self.current_token.line if self.current_token else None}
     
     def if_statement(self):
-        print(f"Parsing if statement at position {self.current_token.position}")  # Debugging
-        self.eat('IF')  # Consume the 'IF' keyword
-        self.eat('OPERATOR')  # Consume the '(' operator
-        condition = self.expression()  # Parse the condition
-        self.eat('OPERATOR')  # Consume the ')' operator
+        print(f"Parsing if statement at position {self.current_token.position}, line {self.current_token.line}")
+        self.eat('IF')
+        self.eat('OPERATOR')
+        condition = self.expression()
+        self.eat('OPERATOR')
 
-        print(f"Parsing thenBranch at position {self.current_token.position}")  # Debugging
-        then_branch = self.block()  # Parse the 'then' block
+        print(f"Parsing thenBranch at position {self.current_token.position}, line {self.current_token.line}")
+        then_branch = self.block()
 
         else_branch = None
-        if self.current_token is not None and self.current_token.type == 'ELSE':  # Check for 'ELSE' token
-            print(f"Parsing elseBranch at position {self.current_token.position}")  # Debugging
-            self.eat('ELSE')  # Consume the 'else' keyword
-            else_branch = self.block()  # Parse the 'else' block
+        if self.current_token is not None and self.current_token.type == 'ELSE':
+            print(f"Parsing elseBranch at position {self.current_token.position}, line {self.current_token.line}")
+            self.eat('ELSE')
+            else_branch = self.block()
 
         return {
             'type': 'IfStatement',
             'condition': condition,
             'thenBranch': then_branch,
-            'elseBranch': else_branch
+            'elseBranch': else_branch,
+            'line': self.current_token.line if self.current_token else None
         }
-
 
     def while_statement(self):
         self.eat('WHILE')
-        self.eat('OPERATOR')  # Consume '('
+        self.eat('OPERATOR')
         condition = self.expression()
-        self.eat('OPERATOR')  # Consume ')'
-        body = self.block()  # Parse block
+        self.eat('OPERATOR')
+        body = self.block()
         return {
             'type': 'WhileStatement',
             'condition': condition,
-            'body': body
+            'body': body,
+            'line': self.current_token.line if self.current_token else None
         }
 
     def for_statement(self):
         self.eat('FOR')
-        self.eat('OPERATOR')  # Consume '('
+        self.eat('OPERATOR')
         identifier = self.current_token
         self.eat('IDENTIFIER')
         self.eat('IN')
         iterable = self.expression()
-        self.eat('OPERATOR')  # Consume ')'
-        body = self.block()  # Parse block
+        self.eat('OPERATOR')
+        body = self.block()
         return {
             'type': 'ForStatement',
-            'identifier': identifier.value,  # Use value as string
+            'identifier': identifier.value,
             'iterable': iterable,
-            'body': body
+            'body': body,
+            'line': identifier.line
         }
 
     def expression_statement(self):
-        node = self.expression()  # Parse the expression
+        node = self.expression()
         if self.current_token is not None and self.current_token.type == 'OPERATOR' and self.current_token.value == ';':
-            self.eat('OPERATOR')  # Ensure the statement ends with a semicolon
+            self.eat('OPERATOR')
         return node
 
     def expression(self):
-        print(f"Parsing expression at position {self.current_token.position}, token: {self.current_token}")  # Debugging
+        print(f"Parsing expression at position {self.current_token.position}, line {self.current_token.line}, token: {self.current_token}")
         if self.current_token.type == 'NUMBER':
-            left = {'type': 'Literal', 'value': self.current_token.value}
+            left = {'type': 'Literal', 'value': self.current_token.value, 'line': self.current_token.line}
             self.advance()
         elif self.current_token.type == 'IDENTIFIER':
             identifier = self.current_token
             self.advance()
-            # Check if this is a function call
             if self.current_token is not None and self.current_token.type == 'OPERATOR' and self.current_token.value == '(':
-                self.eat('OPERATOR')  # Consume the '('
-                arguments = self.argument_list()  # Parse the arguments
-                self.eat('OPERATOR')  # Consume the ')'
+                self.eat('OPERATOR')
+                arguments = self.argument_list()
+                self.eat('OPERATOR')
                 left = {
                     'type': 'FunctionCall',
                     'name': identifier.value,
-                    'arguments': arguments
+                    'arguments': arguments,
+                    'line': identifier.line
                 }
             else:
-                left = {'type': 'Identifier', 'name': identifier.value}
-        elif self.current_token.type == 'STRING':  # Handle string literals
-            left = {'type': 'Literal', 'value': self.current_token.value}
+                left = {'type': 'Identifier', 'name': identifier.value, 'line': identifier.line}
+        elif self.current_token.type == 'STRING':
+            left = {'type': 'Literal', 'value': self.current_token.value, 'line': self.current_token.line}
             self.advance()
         elif self.current_token.type == 'NULL':
-            left = {'type': 'NULL', 'value': None}
+            left = {'type': 'NULL', 'value': None, 'line': self.current_token.line}
             self.advance()
         elif self.current_token.type == 'OPERATOR' and self.current_token.value == '(':
-            self.eat('OPERATOR')  # Consume the '('
-            left = self.expression()  # Recursively parse the inner expression
-            self.eat('OPERATOR')  # Ensure the closing ')' is consumed
+            self.eat('OPERATOR')
+            left = self.expression()
+            self.eat('OPERATOR')
         else:
             raise SyntaxError(
-                f"Unexpected token '{self.current_token.type}' with value '{self.current_token.value}' at position {self.current_token.position}."
+                f"Unexpected token '{self.current_token.type}' with value '{self.current_token.value}' at position {self.current_token.position}, line {self.current_token.line}."
             )
 
-        # Check for a comparison or binary operator
         while self.current_token is not None and self.current_token.type == 'OPERATOR' and self.current_token.value in ['+', '-', '*', '/', '>', '<', '>=', '<=', '==', '!=']:
             operator = self.current_token.value
             self.advance()
-            right = self.expression()  # Parse the right-hand side of the expression
+            right = self.expression()
             left = {
                 'type': 'BinaryOperation',
                 'operator': operator,
                 'left': left,
-                'right': right
+                'right': right,
+                'line': left['line'] if 'line' in left else self.current_token.line if self.current_token else None
             }
 
-        print(f"Parsed expression: {left}")  # Debugging
+        print(f"Parsed expression: {left}")
         return left
 
     def eat(self, token_type):
@@ -250,24 +252,21 @@ class SyntaxAnalyzer:
         else:
             raise SyntaxError(
                 f"Syntax Error: Expected token '{token_type}', but got '{self.current_token.type}' "
-                f"with value '{self.current_token.value}' at position {self.current_token.position}."
+                f"with value '{self.current_token.value}' at position {self.current_token.position}, line {self.current_token.line}."
             )
 
     def next_token(self):
-        """Advance to the next token."""
         self.position += 1
         if self.position < len(self.tokens):
             return self.tokens[self.position]
         return None
 
     def advance(self):
-        """Move to the next token."""
         self.current_token = self.next_token()
         if self.current_token is None:
-            print("Reached end of token stream.")  # Debugging
+            print("Reached end of token stream.")
 
     def peek(self):
-        """Peek at the next token without advancing."""
         if self.position + 1 < len(self.tokens):
             return self.tokens[self.position + 1]
         return None
