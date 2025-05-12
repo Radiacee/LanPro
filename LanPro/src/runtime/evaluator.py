@@ -21,6 +21,9 @@ class Evaluator:
                 right = self.evaluate(node['right'])
                 operator = node['operator']
                 if operator == '+':
+                    # Handle string concatenation if either operand is a string
+                    if isinstance(left, str) or isinstance(right, str):
+                        return str(left) + str(right)
                     return left + right
                 elif operator == '-':
                     return left - right
@@ -85,6 +88,10 @@ class Evaluator:
         if function_name == "print":
             evaluated_args = [self.evaluate(arg) for arg in arguments]
             print(*evaluated_args)
+        elif function_name == "input":
+            if not arguments:  # No arguments provided to input()
+                return input()
+            raise ValueError("input() function does not accept arguments")
         elif function_name in self.functions:
             # Get the function definition
             function = self.functions[function_name]
@@ -96,7 +103,7 @@ class Evaluator:
                 raise ValueError(f"Function '{function_name}' expects {len(parameters)} arguments, but got {len(arguments)}.")
 
             # Temporarily allocate arguments to parameters
-            original_variables = self.memory_manager.variables.copy()  # Use 'variables' instead of 'memory'
+            original_variables = self.memory_manager.variables.copy()
             for param, arg in zip(parameters, arguments):
                 self.memory_manager.allocate(param, self.evaluate(arg))
 
@@ -106,7 +113,7 @@ class Evaluator:
                 result = self.evaluate(statement)
 
             # Restore original variables
-            self.memory_manager.variables = original_variables  # Use 'variables' instead of 'memory'
+            self.memory_manager.variables = original_variables
 
             return result
         else:
