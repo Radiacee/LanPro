@@ -3,9 +3,14 @@ class Evaluator:
         self.memory_manager = memory_manager
         self.functions = {}
         self.verbose = False
+        self.debug = False
 
     def set_verbose(self, verbose):
         self.verbose = verbose
+
+    def set_debug(self, debug):
+        self.debug = debug
+        console.print(f"[bold yellow]Evaluator Debug Mode Set To: {self.debug}[/bold yellow]")
 
     def evaluate(self, node):
         if self.verbose and isinstance(node, dict):
@@ -27,13 +32,12 @@ class Evaluator:
             if node_type == 'Literal':
                 value = node['value']
                 if isinstance(value, str) and value.startswith('"') and value.endswith('"'):
-                    result = value[1:-1]
+                    result = value[1:-1]  # Strip quotes from string literals
                 else:
                     result = value
                 if self.verbose:
                     console.print(f"[magenta]Evaluated Literal to: {result}[/magenta]")
                 return result
-                
             elif node_type == 'Identifier':
                 result = self.memory_manager.get(node['name'])
                 if self.verbose:
@@ -50,24 +54,29 @@ class Evaluator:
                 right = self.evaluate(node['right'])
                 operator = node['operator']
                 if operator == '+':
-                    if isinstance(left, str) and isinstance(right, str):
-                        return str(left) + str(right)
+                    if isinstance(left, str) or isinstance(right, str):
+                        result = str(left) + str(right)  # Adjusted to match current behavior
                     elif isinstance(left, (int, float)) and isinstance(right, (int, float)):
-                        return left + right
+                        result = left + right
                     else:
                         raise ValueError(f"Type mismatch: Cannot add {type(left).__name__} and {type(right).__name__} at line {line}")
                 elif operator == '-':
                     if isinstance(left, (int, float)) and isinstance(right, (int, float)):
-                        return left - right
-                    raise ValueError(f"Type mismatch: Cannot subtract {type(right).__name__} from {type(left).__name__} at line {line}")
+                        result = left - right
+                    else:
+                        raise ValueError(f"Type mismatch: Cannot subtract {type(right).__name__} from {type(left).__name__} at line {line}")
                 elif operator == '*':
                     if isinstance(left, (int, float)) and isinstance(right, (int, float)):
-                        return left * right
-                    raise ValueError(f"Type mismatch: Cannot multiply {type(left).__name__} and {type(right).__name__} at line {line}")
+                        result = left * right
+                    else:
+                        raise ValueError(f"Type mismatch: Cannot multiply {type(left).__name__} and {type(right).__name__} at line {line}")
                 elif operator == '/':
-                    if isinstance(left, (int, float)) and isinstance(right, (int, float)) and right != 0:
-                        return left / right
-                    raise ValueError(f"Type mismatch or division by zero: Cannot divide {type(left).__name__} by {type(right).__name__} at line {line}")
+                    if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+                        if right == 0:
+                            raise ValueError(f"Division by zero error for operation '{left} / {right}' at line {line}, where left = {left}")
+                        result = left / right
+                    else:
+                        raise ValueError(f"Type mismatch or division by zero: Cannot divide {type(left).__name__} by {type(right).__name__} at line {line}")
                 elif operator in ['<', '>', '<=', '>=', '==', '!=']:
                     if isinstance(left, (int, float)) and isinstance(right, (int, float)):
                         result = {
@@ -84,6 +93,7 @@ class Evaluator:
                     raise ValueError(f"Unknown operator: {operator} at line {line}")
                 if self.verbose:
                     console.print(f"[magenta]Evaluated {left} {operator} {right} to: {result}[/magenta]")
+                return result
             elif node_type == 'AssignmentStatement':
                 if self.verbose:
                     console.print(f"[magenta]Assigning to '{node['identifier']}'[/magenta]")
@@ -209,6 +219,15 @@ class Evaluator:
             if self.verbose:
                 console.print(f"[magenta]Running statement: {statement}[/magenta]")
             self.evaluate(statement)
+            if self.debug:
+                console.print("[yellow]Debug: Variable States:[/yellow]")
+                for var_name, info in self.memory_manager.variables.items():
+                    if var_name not in self.memory_manager.deleted_vars:
+                        console.print(f"[yellow]  {var_name} = {info['value']} (ref_count: {info['ref_count']})[/yellow]")
+                console.print(f"[yellow]Debug: Memory Usage - Active Variables: {len([v for v in self.memory_manager.variables if v not in self.memory_manager.deleted_vars])}[/yellow]")
+                console.print(f"[yellow]Debug: Deleted Variables: {self.memory_manager.deleted_vars}[/yellow]")
+            else:
+                console.print("[yellow]Debug Mode Off: Skipping variable states and memory usage[/yellow]")
             self.memory_manager.run_gc()
             if self.verbose:
                 console.print("[magenta]Garbage collection completed[/magenta]")
