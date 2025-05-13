@@ -16,6 +16,7 @@ def main():
     # Set up argument parser
     parser = argparse.ArgumentParser(description="LanPro Interpreter")
     parser.add_argument('-f', '--file', type=str, help='Path to the LanPro script file to execute')
+    parser.add_argument('--verbose', action='store_true', help='Enable verbose mode to show token stream, parse trace, and eval steps')
     args = parser.parse_args()
 
     # Initialize components
@@ -29,10 +30,23 @@ def main():
                 code = file.read()
                 tokenizer = Tokenizer(code)
                 tokens = tokenizer.tokenize()
+                if args.verbose:
+                    console.print("[bold cyan]Token Stream:[/bold cyan]")
+                    for token in tokens:
+                        console.print(f"  {token}")
+
                 parser_instance = SyntaxAnalyzer()
                 ast = parser_instance.parse(tokens)
+                if args.verbose:
+                    console.print("[bold cyan]Parse Trace:[/bold cyan]")
+                    # Note: Parse trace is already printed in SyntaxAnalyzer with debug prints
+
                 semantic_analyzer = SemanticAnalyzer()
                 semantic_analyzer.analyze(ast)
+                if args.verbose:
+                    console.print("[bold cyan]Evaluation Steps:[/bold cyan]")
+                    evaluator.set_verbose(True)  # Enable verbose mode in Evaluator
+
                 evaluator.run(ast)
                 console.print("[green]Script executed successfully![/green]")
         except Exception as e:
@@ -48,10 +62,23 @@ def main():
             try:
                 tokenizer = Tokenizer(code)
                 tokens = tokenizer.tokenize()
+                if args.verbose:
+                    console.print("[bold cyan]Token Stream:[/bold cyan]")
+                    for token in tokens:
+                        console.print(f"  {token}")
+
                 parser_instance = SyntaxAnalyzer()
                 ast = parser_instance.parse(tokens)
+                if args.verbose:
+                    console.print("[bold cyan]Parse Trace:[/bold cyan]")
+                    # Note: Parse trace is already printed in SyntaxAnalyzer with debug prints
+
                 semantic_analyzer = SemanticAnalyzer()
                 semantic_analyzer.analyze(ast)
+                if args.verbose:
+                    console.print("[bold cyan]Evaluation Steps:[/bold cyan]")
+                    evaluator.set_verbose(True)  # Enable verbose mode in Evaluator
+                    
                 evaluator.run(ast)
                 console.print("[green]Execution completed successfully![/green]")
             except Exception as e:

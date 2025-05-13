@@ -2,12 +2,24 @@ class Evaluator:
     def __init__(self, memory_manager):
         self.memory_manager = memory_manager
         self.functions = {}
+        self.verbose = False
+
+    def set_verbose(self, verbose):
+        self.verbose = verbose
 
     def evaluate(self, node):
+        if self.verbose and isinstance(node, dict):
+            console.print(f"[magenta]Evaluating node: {node}[/magenta]")
+
         if isinstance(node, int):
+            if self.verbose:
+                console.print(f"[magenta]Evaluated to integer: {node}[/magenta]")
             return node
         elif isinstance(node, str):
-            return self.memory_manager.get(node)
+            value = self.memory_manager.get(node)
+            if self.verbose:
+                console.print(f"[magenta]Evaluated identifier '{node}' to: {value}[/magenta]")
+            return value
         elif isinstance(node, dict):
             node_type = node.get('type')
             line = node.get('line')
@@ -15,13 +27,25 @@ class Evaluator:
             if node_type == 'Literal':
                 value = node['value']
                 if isinstance(value, str) and value.startswith('"') and value.endswith('"'):
-                    return value[1:-1]
-                return value
+                    result = value[1:-1]
+                else:
+                    result = value
+                if self.verbose:
+                    console.print(f"[magenta]Evaluated Literal to: {result}[/magenta]")
+                return result
+                
             elif node_type == 'Identifier':
-                return self.memory_manager.get(node['name'])
+                result = self.memory_manager.get(node['name'])
+                if self.verbose:
+                    console.print(f"[magenta]Evaluated Identifier '{node['name']}' to: {result}[/magenta]")
+                return result
             elif node_type == 'NULL':
+                if self.verbose:
+                    console.print("[magenta]Evaluated NULL to: None[/magenta]")
                 return None
             elif node_type == 'BinaryOperation':
+                if self.verbose:
+                    console.print(f"[magenta]Evaluating BinaryOperation: {node['operator']}[/magenta]")
                 left = self.evaluate(node['left'])
                 right = self.evaluate(node['right'])
                 operator = node['operator']
@@ -46,7 +70,7 @@ class Evaluator:
                     raise ValueError(f"Type mismatch or division by zero: Cannot divide {type(left).__name__} by {type(right).__name__} at line {line}")
                 elif operator in ['<', '>', '<=', '>=', '==', '!=']:
                     if isinstance(left, (int, float)) and isinstance(right, (int, float)):
-                        return {
+                        result = {
                             '<': lambda x, y: x < y,
                             '>': lambda x, y: x > y,
                             '<=': lambda x, y: x <= y,
@@ -54,10 +78,15 @@ class Evaluator:
                             '==': lambda x, y: x == y,
                             '!=': lambda x, y: x != y
                         }[operator](left, right)
-                    raise ValueError(f"Type mismatch: Cannot compare {type(left).__name__} and {type(right).__name__} at line {line}")
+                    else:
+                        raise ValueError(f"Type mismatch: Cannot compare {type(left).__name__} and {type(right).__name__} at line {line}")
                 else:
                     raise ValueError(f"Unknown operator: {operator} at line {line}")
+                if self.verbose:
+                    console.print(f"[magenta]Evaluated {left} {operator} {right} to: {result}[/magenta]")
             elif node_type == 'AssignmentStatement':
+                if self.verbose:
+                    console.print(f"[magenta]Assigning to '{node['identifier']}'[/magenta]")
                 value = self.evaluate(node['value'])
                 if value is None:
                     if self.memory_manager.exists(node['identifier']):
@@ -66,20 +95,34 @@ class Evaluator:
                         self.memory_manager.allocate(node['identifier'], None)
                 else:
                     self.memory_manager.allocate(node['identifier'], value)
+                if self.verbose:
+                    console.print(f"[magenta]Assigned value: {value} to '{node['identifier']}'[/magenta]")
             elif node_type == 'FunctionCall':
+                if self.verbose:
+                    console.print(f"[magenta]Calling function '{node['name']}' with args: {node['arguments']}[/magenta]")
                 return self.evaluate_function(node['name'], node['arguments'], line)
             elif node_type == 'FunctionDeclaration':
+                if self.verbose:
+                    console.print(f"[magenta]Declaring function '{node['name']}'[/magenta]")
                 self.functions[node['name']] = {
                     'parameters': node['parameters'],
                     'body': node['body']
                 }
             elif node_type == 'ReturnStatement':
+                if self.verbose:
+                    console.print("[magenta]Evaluating return statement[/magenta]")
                 return self.evaluate(node['value'])
             elif node_type == 'Block':
+                if self.verbose:
+                    console.print("[magenta]Entering Block[/magenta]")
                 for statement in node['body']:
                     result = self.evaluate(statement)
                     if isinstance(result, dict) and result.get('type') == 'ReturnStatement':
+                        if self.verbose:
+                            console.print("[magenta]Exiting Block with return[/magenta]")
                         return result
+                if self.verbose:
+                    console.print("[magenta]Exiting Block[/magenta]")
             else:
                 return self.evaluate_control_structure(node)
         else:
@@ -89,25 +132,43 @@ class Evaluator:
         node_type = node.get('type')
         line = node.get('line')
         if node_type == 'IfStatement':
+            if self.verbose:
+                console.print("[magenta]Evaluating IfStatement condition[/magenta]")
             condition = self.evaluate(node['condition'])
             if condition:
+                if self.verbose:
+                    console.print("[magenta]Condition true, entering then branch[/magenta]")
                 return self.evaluate(node['thenBranch'])
             elif node['elseBranch'] is not None:
+                if self.verbose:
+                    console.print("[magenta]Condition false, entering else branch[/magenta]")
                 return self.evaluate(node['elseBranch'])
         elif node_type == 'WhileStatement':
+            if self.verbose:
+                console.print("[magenta]Entering WhileStatement loop[/magenta]")
             while self.evaluate(node['condition']):
                 self.evaluate(node['body'])
+            if self.verbose:
+                console.print("[magenta]Exiting WhileStatement loop[/magenta]")
         elif node_type == 'ForStatement':
+            if self.verbose:
+                console.print("[magenta]Entering ForStatement loop[/magenta]")
             iterable = self.evaluate(node['iterable'])
             for value in iterable:
                 self.memory_manager.allocate(node['identifier'], value)
                 self.evaluate(node['body'])
+            if self.verbose:
+                console.print("[magenta]Exiting ForStatement loop[/magenta]")
         else:
             raise ValueError(f"Unknown control structure type: {node_type} at line {line}")
 
     def evaluate_function(self, function_name, arguments, line):
+        if self.verbose:
+            console.print(f"[magenta]Evaluating function call '{function_name}'[/magenta]")
         if function_name == "print":
             evaluated_args = [self.evaluate(arg) for arg in arguments]
+            if self.verbose:
+                console.print(f"[magenta]Printing arguments: {evaluated_args}[/magenta]")
             print(*evaluated_args)
         elif function_name == "input":
             if not arguments:
@@ -126,6 +187,8 @@ class Evaluator:
             if len(arguments) != len(parameters):
                 raise ValueError(f"Function '{function_name}' expects {len(parameters)} arguments, but got {len(arguments)} at line {line}")
 
+            if self.verbose:
+                console.print(f"[magenta]Setting up function '{function_name}' with parameters: {parameters}[/magenta]")
             original_variables = self.memory_manager.variables.copy()
             for param, arg in zip(parameters, arguments):
                 self.memory_manager.allocate(param, self.evaluate(arg))
@@ -135,11 +198,20 @@ class Evaluator:
                 result = self.evaluate(statement)
 
             self.memory_manager.variables = original_variables
+            if self.verbose:
+                console.print(f"[magenta]Function '{function_name}' returned: {result}[/magenta]")
             return result
         else:
             raise ValueError(f"Unknown function: {function_name} at line {line}")
 
     def run(self, program):
         for statement in program['body']:
+            if self.verbose:
+                console.print(f"[magenta]Running statement: {statement}[/magenta]")
             self.evaluate(statement)
             self.memory_manager.run_gc()
+            if self.verbose:
+                console.print("[magenta]Garbage collection completed[/magenta]")
+
+from rich.console import Console
+console = Console()
