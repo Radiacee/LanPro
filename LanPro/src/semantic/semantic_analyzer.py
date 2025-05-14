@@ -21,6 +21,9 @@ class SemanticAnalyzer:
             self.visit(node['thenBranch'])
             if node['elseBranch']:
                 self.visit(node['elseBranch'])
+        elif node['type'] == 'WhileStatement':
+            self.visit(node['condition'])
+            self.visit(node['body'])
         elif node['type'] == 'Block':
             if not isinstance(node['body'], list):
                 raise Exception(f"Expected 'body' of Block node to be a list, but got {type(node['body'])} at line {node.get('line', 'unknown')}")
