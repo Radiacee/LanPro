@@ -189,6 +189,22 @@ class Evaluator:
                 raise ValueError(f"free() expects a single variable name as argument at line {line}")
             var_name = arguments[0]['name']
             self.memory_manager.deallocate(var_name)
+        elif function_name =="help":
+            help_text = """
+[bold green]LanPro Built-in Help[/bold green]
+Available Commands and Features:
+  - Assignment: x = 10;    (Assign a value to a variable)
+  - Arithmetic: y = x + 5; (Supports +, -, *, /, <, >, <=, >=, ==, !=)
+  - print(x);              (Print variable or value)
+  - free(x);               (Deallocate a variable)
+  - help();                  (Display this help message)
+  - Variables: Dynamic allocation with garbage collection
+  - Control Structures: if, while, for (syntax varies by implementation)
+
+"""
+            console.print(Panel(help_text, expand=False))
+            return None  # Return None to indicate no further evaluation needed
+
         elif function_name in self.functions:
             function = self.functions[function_name]
             parameters = function['parameters']
@@ -233,4 +249,5 @@ class Evaluator:
                 console.print("[magenta]Garbage collection completed[/magenta]")
 
 from rich.console import Console
+from rich.panel import Panel
 console = Console()
