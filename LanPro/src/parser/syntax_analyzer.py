@@ -31,6 +31,8 @@ class SyntaxAnalyzer:
             return self.while_statement()
         elif self.current_token.type == 'FOR':
             return self.for_statement()
+        elif self.current_token.type == 'PARALLEL':
+            return self.parallel_statement()
         elif self.current_token.type == 'IDENTIFIER' and self.current_token.value == 'function':
             return self.function_declaration()
         elif self.current_token.type == 'IDENTIFIER' and self.current_token.value == 'return':
@@ -280,3 +282,12 @@ class SyntaxAnalyzer:
 
     def error(self, message):
         raise SyntaxError(message)
+
+    def parallel_statement(self):
+        self.eat('PARALLEL')
+        body = self.block()
+        return {
+            'type': 'ParallelStatement',
+            'body': body,
+            'line': self.current_token.line if self.current_token else None
+        }

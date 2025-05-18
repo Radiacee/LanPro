@@ -1,9 +1,14 @@
+import asyncio
+import threading
+from concurrent.futures import ThreadPoolExecutor, Future
+
 class Evaluator:
     def __init__(self, memory_manager):
         self.memory_manager = memory_manager
         self.functions = {}
         self.verbose = False
         self.debug = False
+        self.thread_pool = ThreadPoolExecutor(max_workers=10)  # Limit concurrent threads
 
     def set_verbose(self, verbose):
         self.verbose = verbose
@@ -135,6 +140,15 @@ class Evaluator:
                         return result
                 if self.verbose:
                     console.print("[magenta]Exiting Block[/magenta]")
+            elif node_type == 'ParallelStatement':
+                if self.verbose:
+                    console.print("[magenta]Executing parallel block[/magenta]")
+                # Submit each statement in the block to run concurrently
+                futures = []
+                for statement in node['body']['body']:
+                    future = self.thread_pool.submit(self.evaluate, statement)
+                    futures.append(future)
+                return futures  # Return list of futures for result collection
             else:
                 return self.evaluate_control_structure(node)
         else:
@@ -166,6 +180,8 @@ class Evaluator:
             if self.verbose:
                 console.print("[magenta]Entering ForStatement loop[/magenta]")
             iterable = self.evaluate(node['iterable'])
+            if not isinstance(iterable, (list, tuple, range)):
+                raise ValueError(f"For loop expects an iterable, got {type(iterable).__name__} at line {line}")
             for value in iterable:
                 self.memory_manager.allocate(node['identifier'], value)
                 self.evaluate(node['body'])
@@ -202,6 +218,11 @@ Available Commands and Features:
   - help();                  (Display this help message)
   - Variables: Dynamic allocation with garbage collection
   - Control Structures: if, while, for (syntax varies by implementation)
+Running scripts:
+    - python main.py -f <script_name>
+    - python main.py --file <script_name>
+    - python main.py -f <script_name> --verbose
+    - python main.py -f <script_name> --debug
 
 """
             console.print(Panel(help_text, expand=False))
@@ -233,10 +254,15 @@ Available Commands and Features:
             raise ValueError(f"Unknown function: {function_name} at line {line}")
 
     def run(self, program):
+        all_futures = []  # Store all parallel execution futures
         for statement in program['body']:
             if self.verbose:
                 console.print(f"[magenta]Running statement: {statement}[/magenta]")
-            self.evaluate(statement)
+            result = self.evaluate(statement)
+            if isinstance(result, Future):
+                all_futures.append(result)
+            elif isinstance(result, list) and all(isinstance(f, Future) for f in result):
+                all_futures.extend(result)
             if self.debug:
                 console.print("[yellow]Debug: Variable States:[/yellow]")
                 for var_name, info in self.memory_manager.variables.items():
@@ -249,6 +275,10 @@ Available Commands and Features:
             self.memory_manager.run_gc()
             if self.verbose:
                 console.print("[magenta]Garbage collection completed[/magenta]")
+        
+        # Wait for all parallel executions to complete
+        for future in all_futures:
+            future.result()  # This will raise any exceptions that occurred in the parallel blocks
 
 from rich.console import Console
 from rich.panel import Panel

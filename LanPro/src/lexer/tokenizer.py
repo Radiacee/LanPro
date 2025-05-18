@@ -88,7 +88,9 @@ class Tokenizer:
             'if': 'IF',
             'else': 'ELSE',
             'while': 'WHILE',
-            'for': 'FOR'
+            'for': 'FOR',
+            'parallel': 'PARALLEL',
+            'in': 'IN'
         }
         
         token_type = keywords.get(result, 'IDENTIFIER')
