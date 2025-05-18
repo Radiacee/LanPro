@@ -4,6 +4,7 @@ class Evaluator:
         self.functions = {}
         self.verbose = False
         self.debug = False
+        self.classes = {}
 
     def set_verbose(self, verbose):
         self.verbose = verbose
@@ -118,6 +119,34 @@ class Evaluator:
                     'parameters': node['parameters'],
                     'body': node['body']
                 }
+            elif node_type == 'ClassDeclaration':
+                # Register the class and its methods
+                self.classes[node['name']] = {m['name']: m for m in node['methods']}
+                if self.verbose:
+                    console.print(f"[magenta]Registered class '{node['name']}' with methods: {list(self.classes[node['name']].keys())}[/magenta]")
+                return None
+            elif node_type == 'NewExpression':
+                class_name = node['class']
+                if class_name not in self.classes:
+                    raise ValueError(f"Class '{class_name}' is not defined at line {node.get('line')}")
+                # Create a new object with a reference to its class methods
+                return {'__class__': class_name, '__methods__': self.classes[class_name]}
+            elif node_type == 'MethodCall':
+                obj = self.evaluate(node['object'])
+                method_name = node['member']
+                arguments = node['arguments']
+                if '__methods__' not in obj or method_name not in obj['__methods__']:
+                    raise ValueError(f"Method '{method_name}' not found on object of class '{obj.get('__class__', 'unknown')}' at line {line}")
+                method_def = obj['__methods__'][method_name]
+                original_variables = self.memory_manager.variables.copy()
+                self.memory_manager.allocate('self', obj)
+                for param, arg in zip(method_def['parameters'], arguments):
+                    self.memory_manager.allocate(param, self.evaluate(arg))
+                result = None
+                for stmt in method_def['body']['body']:
+                    result = self.evaluate(stmt)
+                self.memory_manager.variables = original_variables
+                return result
             elif node_type == 'ReturnStatement':
                 if self.verbose:
                     console.print("[magenta]Evaluating return statement[/magenta]")

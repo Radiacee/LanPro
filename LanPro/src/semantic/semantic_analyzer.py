@@ -24,6 +24,12 @@ class SemanticAnalyzer:
         elif node['type'] == 'WhileStatement':
             self.visit(node['condition'])
             self.visit(node['body'])
+        elif node['type'] == 'NewExpression':
+            pass
+        elif node['type'] == 'MethodCall':
+            self.visit(node['object'])
+            for arg in node['arguments']:
+                self.visit(arg)
         elif node['type'] == 'Block':
             if not isinstance(node['body'], list):
                 raise Exception(f"Expected 'body' of Block node to be a list, but got {type(node['body'])} at line {node.get('line', 'unknown')}")
@@ -44,6 +50,9 @@ class SemanticAnalyzer:
                 self.visit(element)
         elif node['type'] == 'FunctionDeclaration':
             self.analyze_function_declaration(node)
+        elif node['type'] == 'ClassDeclaration':
+            for method in node['methods']:
+                self.visit(method)
         elif node['type'] == 'ReturnStatement':
             self.analyze_return_statement(node)
         else:

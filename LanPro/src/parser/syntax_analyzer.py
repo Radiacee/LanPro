@@ -25,7 +25,11 @@ class SyntaxAnalyzer:
         if self.current_token is None:
             raise SyntaxError(f"Unexpected end of input while parsing a statement at line {self.current_token.line if self.current_token else 'unknown'}")
         print(f"Parsing statement at position {self.current_token.position}, line {self.current_token.line}, token: {self.current_token}")
-        if self.current_token.type == 'IF':
+        if self.current_token.type == 'CLASS':
+            return self.class_declaration()
+        elif self.current_token.type == 'LET':
+            return self.let_statement()
+        elif self.current_token.type == 'IF':
             return self.if_statement()
         elif self.current_token.type == 'WHILE':
             return self.while_statement()
@@ -52,6 +56,26 @@ class SyntaxAnalyzer:
             'value': value,
             'line': self.current_token.line if self.current_token else None
         }
+        
+    def class_declaration(self):
+        self.eat('CLASS')
+        class_name = self.current_token.value
+        self.eat('IDENTIFIER')
+        self.eat('OPERATOR')  # {
+        methods = []
+        while self.current_token.value != '}':
+            methods.append(self.function_declaration(is_method=True))
+        self.eat('OPERATOR')  # }
+        return {'type': 'ClassDeclaration', 'name': class_name, 'methods': methods}
+
+    def let_statement(self):
+        self.eat('LET')
+        var_name = self.current_token.value
+        self.eat('IDENTIFIER')
+        self.eat('OPERATOR')  # =
+        value = self.expression()
+        self.eat('OPERATOR')  # ;
+        return {'type': 'LetStatement', 'identifier': var_name, 'value': value}
 
     def assignment_statement(self):
         identifier = self.current_token
@@ -66,13 +90,13 @@ class SyntaxAnalyzer:
             'line': identifier.line
         }
     
-    def function_declaration(self):
+    def function_declaration(self, is_method=False):
         print(f"Parsing function declaration at position {self.current_token.position}, line {self.current_token.line}")
-        self.eat('IDENTIFIER')
+        if not is_method:
+            self.eat('IDENTIFIER')  # 'function'
         function_name = self.current_token
         self.eat('IDENTIFIER')
-        self.eat('OPERATOR')
-
+        self.eat('OPERATOR')  # (
         parameters = []
         if self.current_token.type == 'IDENTIFIER':
             parameters.append(self.current_token.value)
@@ -81,10 +105,8 @@ class SyntaxAnalyzer:
                 self.eat('OPERATOR')
                 parameters.append(self.current_token.value)
                 self.eat('IDENTIFIER')
-
-        self.eat('OPERATOR')
+        self.eat('OPERATOR')  # )
         body = self.block()
-
         return {
             'type': 'FunctionDeclaration',
             'name': function_name.value,
@@ -198,7 +220,18 @@ class SyntaxAnalyzer:
 
     def expression(self):
         print(f"Parsing expression at position {self.current_token.position}, line {self.current_token.line}, token: {self.current_token}")
-        if self.current_token.type == 'NUMBER':
+
+        # --- NEW: Handle 'new' keyword for object instantiation ---
+        if self.current_token.type == 'NEW':
+            self.eat('NEW')
+            class_name = self.current_token.value
+            self.eat('IDENTIFIER')
+            self.eat('OPERATOR')  # (
+            self.eat('OPERATOR')  # )
+            left = {'type': 'NewExpression', 'class': class_name, 'line': self.current_token.line}
+        # --- END NEW ---
+
+        elif self.current_token.type == 'NUMBER':
             left = {'type': 'Literal', 'value': self.current_token.value, 'line': self.current_token.line}
             self.advance()
         elif self.current_token.type == 'IDENTIFIER':
@@ -237,6 +270,32 @@ class SyntaxAnalyzer:
             raise SyntaxError(
                 f"Unexpected token '{self.current_token.type}' with value '{self.current_token.value}' at position {self.current_token.position}, line {self.current_token.line}."
             )
+
+        # --- NEW: Handle member access and method calls (e.g., p.greet or p.greet()) ---
+        while self.current_token is not None and self.current_token.type == 'OPERATOR' and self.current_token.value == '.':
+            self.eat('OPERATOR')
+            member = self.current_token.value
+            self.eat('IDENTIFIER')
+            # Check for method call: p.greet()
+            if self.current_token is not None and self.current_token.type == 'OPERATOR' and self.current_token.value == '(':
+                self.eat('OPERATOR')
+                arguments = self.argument_list()
+                self.eat('OPERATOR')
+                left = {
+                    'type': 'MethodCall',
+                    'object': left,
+                    'member': member,
+                    'arguments': arguments,
+                    'line': self.current_token.line if self.current_token else None
+                }
+            else:
+                left = {
+                    'type': 'MemberAccess',
+                    'object': left,
+                    'member': member,
+                    'line': self.current_token.line if self.current_token else None
+                }
+        # --- END NEW ---
 
         while self.current_token is not None and self.current_token.type == 'OPERATOR' and self.current_token.value in ['+', '-', '*', '/', '>', '<', '>=', '<=', '==', '!=']:
             operator = self.current_token.value
