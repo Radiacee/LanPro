@@ -11,7 +11,7 @@ from runtime.memory_manager import MemoryManager
 def main():
     console = Console()
     console.print(Panel("Welcome to [bold magenta]LanPro[/bold magenta], your custom programming language!", expand=False))
-    
+    print("\n")
     # Set up argument parser
     parser = argparse.ArgumentParser(description="LanPro Interpreter")
     parser.add_argument('-f', '--file', type=str, help='Path to the LanPro script file to execute')

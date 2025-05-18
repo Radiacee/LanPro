@@ -122,6 +122,8 @@ class Evaluator:
                 if self.verbose:
                     console.print("[magenta]Evaluating return statement[/magenta]")
                 return self.evaluate(node['value'])
+            elif node_type == 'ListLiteral':
+                return [self.evaluate(element) for element in node['elements']]
             elif node_type == 'Block':
                 if self.verbose:
                     console.print("[magenta]Entering Block[/magenta]")

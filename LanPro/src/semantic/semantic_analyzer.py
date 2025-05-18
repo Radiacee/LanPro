@@ -39,6 +39,9 @@ class SemanticAnalyzer:
             pass
         elif node['type'] == 'NULL':
             pass
+        elif node['type'] == 'ListLiteral':
+            for element in node['elements']:
+                self.visit(element)
         elif node['type'] == 'FunctionDeclaration':
             self.analyze_function_declaration(node)
         elif node['type'] == 'ReturnStatement':

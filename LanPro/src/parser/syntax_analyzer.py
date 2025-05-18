@@ -222,10 +222,17 @@ class SyntaxAnalyzer:
         elif self.current_token.type == 'NULL':
             left = {'type': 'NULL', 'value': None, 'line': self.current_token.line}
             self.advance()
-        elif self.current_token.type == 'OPERATOR' and self.current_token.value == '(':
-            self.eat('OPERATOR')
-            left = self.expression()
-            self.eat('OPERATOR')
+        elif self.current_token.type == 'OPERATOR' and self.current_token.value == '[':
+            self.eat('OPERATOR')  # Eat '['
+            elements = []
+            while self.current_token is not None and not (self.current_token.type == 'OPERATOR' and self.current_token.value == ']'):
+                elements.append(self.expression())
+                if self.current_token is not None and self.current_token.type == 'OPERATOR' and self.current_token.value == ',':
+                    self.eat('OPERATOR')  # Eat ','
+                else:
+                    break
+            self.eat('OPERATOR')  # Eat ']'
+            left = {'type': 'ListLiteral', 'elements': elements, 'line': self.current_token.line if self.current_token else None}
         else:
             raise SyntaxError(
                 f"Unexpected token '{self.current_token.type}' with value '{self.current_token.value}' at position {self.current_token.position}, line {self.current_token.line}."

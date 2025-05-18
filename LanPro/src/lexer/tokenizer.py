@@ -63,7 +63,7 @@ class Tokenizer:
                 self.tokens.append(self.string())
                 continue
 
-            if self.current_char in "=+-*/(){};<>!":
+            if self.current_char in "=+-*/(){};<>![],":
                 self.tokens.append(self.operator())
                 continue
 
