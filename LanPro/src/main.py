@@ -24,6 +24,12 @@ def main():
 
     # Initialize components
     memory_manager = MemoryManager()
+    
+    # Register built-in print function
+    def lanpro_print(*args):
+        console.print(*args)
+    memory_manager.allocate('print', lanpro_print)
+    
     evaluator = Evaluator(memory_manager)
 
     if args.file:

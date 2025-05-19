@@ -111,7 +111,21 @@ class Evaluator:
             elif node_type == 'FunctionCall':
                 if self.verbose:
                     console.print(f"[magenta]Calling function '{node['name']}' with args: {node['arguments']}[/magenta]")
+                func = self.memory_manager.get(node['name'])
+                if callable(func):
+                    evaluated_args = [self.evaluate(arg) for arg in node['arguments']]
+                    return func(*evaluated_args)
                 return self.evaluate_function(node['name'], node['arguments'], line)
+            elif node_type == 'LambdaExpression':
+                    # Return a callable lambda object (closure)
+                def lambda_func(*args):
+                    original_variables = self.memory_manager.variables.copy()
+                    for param, arg in zip(node['parameters'], args):
+                        self.memory_manager.allocate(param, arg)
+                    result = self.evaluate(node['body'])
+                    self.memory_manager.variables = original_variables
+                    return result                    
+                return lambda_func
             elif node_type == 'FunctionDeclaration':
                 if self.verbose:
                     console.print(f"[magenta]Declaring function '{node['name']}'[/magenta]")

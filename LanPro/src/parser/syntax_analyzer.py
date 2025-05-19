@@ -230,6 +230,27 @@ class SyntaxAnalyzer:
             self.eat('OPERATOR')  # )
             left = {'type': 'NewExpression', 'class': class_name, 'line': self.current_token.line}
         # --- END NEW ---
+        
+        if self.current_token.type == 'OPERATOR' and self.current_token.value == '(':
+            self.eat('OPERATOR')  # (
+            params = []
+            if self.current_token.type == 'IDENTIFIER':
+                params.append(self.current_token.value)
+                self.eat('IDENTIFIER')
+                while self.current_token.type == 'OPERATOR' and self.current_token.value == ',':
+                    self.eat('OPERATOR')
+                    params.append(self.current_token.value)
+                    self.eat('IDENTIFIER')
+            self.eat('OPERATOR')  # )
+            if self.current_token.type == 'OPERATOR' and self.current_token.value == '=>':
+                self.eat('OPERATOR')
+                body = self.expression()
+                return {
+                    'type': 'LambdaExpression',
+                    'parameters': params,
+                    'body': body,
+                    'line': self.current_token.line
+                }
 
         elif self.current_token.type == 'NUMBER':
             left = {'type': 'Literal', 'value': self.current_token.value, 'line': self.current_token.line}

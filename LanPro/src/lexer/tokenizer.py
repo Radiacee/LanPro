@@ -62,6 +62,14 @@ class Tokenizer:
             if self.current_char == '"':
                 self.tokens.append(self.string())
                 continue
+            
+            if self.current_char == '=' and self.peek_next(2) == '=>':
+                start_position = self.position
+                start_line = self.line
+                self.advance()  # skip '='
+                self.advance()  # skip '>'
+                self.tokens.append(Token('OPERATOR', '=>', start_position, start_line))
+                continue
 
             if self.current_char in "=+-*/(){};<>![],.":
                 self.tokens.append(self.operator())

@@ -30,6 +30,9 @@ class SemanticAnalyzer:
             self.visit(node['object'])
             for arg in node['arguments']:
                 self.visit(arg)
+        elif node['type'] == 'LambdaExpression':
+            # Visit the body of the lambda to check for semantic errors
+            self.visit(node['body'])
         elif node['type'] == 'Block':
             if not isinstance(node['body'], list):
                 raise Exception(f"Expected 'body' of Block node to be a list, but got {type(node['body'])} at line {node.get('line', 'unknown')}")
