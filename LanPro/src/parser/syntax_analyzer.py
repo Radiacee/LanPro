@@ -228,6 +228,10 @@ class SyntaxAnalyzer:
             token = self.current_token
             self.advance()
             node = {'type': 'Literal', 'value': token.value, 'line': token.line}
+        elif self.current_token.type == 'NULL':
+            token = self.current_token
+            self.advance()
+            node = {'type': 'NULL', 'line': token.line}
         elif self.current_token.type == 'STRING':
             token = self.current_token
             self.advance()
