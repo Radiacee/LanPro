@@ -264,12 +264,34 @@ class SyntaxAnalyzer:
                 'line': token.line
             }
         elif self.current_token.type == 'OPERATOR' and self.current_token.value == '(':
-            self.advance()  # eat '('
-            expr = self.expression()
-            if self.current_token.type != 'OPERATOR' or self.current_token.value != ')':
-                raise SyntaxError(f"Expected ')' but got '{self.current_token.value}'")
-            self.advance()  # eat ')'
-            node = expr
+            self.eat('OPERATOR')  # eat '('
+            # --- Lambda/arrow function parameter list support ---
+            parameters = []
+            if self.current_token.type == 'IDENTIFIER':
+                parameters.append(self.current_token.value)
+                self.eat('IDENTIFIER')
+                while self.current_token.type == 'OPERATOR' and self.current_token.value == ',':
+                    self.eat('OPERATOR')
+                    parameters.append(self.current_token.value)
+                    self.eat('IDENTIFIER')
+            self.eat('OPERATOR')  # eat ')'
+            # Check for arrow function
+            if self.current_token.type == 'OPERATOR' and self.current_token.value == '=>':
+                self.eat('OPERATOR')  # eat '=>'
+                body = self.expression()
+                node = {
+                    'type': 'LambdaExpression',
+                    'parameters': parameters,
+                    'body': body,
+                    'line': self.current_token.line
+                }
+            else:
+                # Parenthesized expression
+                if len(parameters) == 1 and not (self.current_token.type == 'OPERATOR' and self.current_token.value == ','):
+                    # Single identifier in parentheses, treat as variable reference
+                    node = {'type': 'Identifier', 'name': parameters[0], 'line': self.current_token.line}
+                else:
+                    node = {'type': 'Tuple' if len(parameters) > 1 else 'Expression', 'elements': parameters, 'line': self.current_token.line}
         elif self.current_token.type == 'OPERATOR' and self.current_token.value == '[':
             self.eat('OPERATOR')  # eat '['
             elements = []
