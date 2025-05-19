@@ -109,8 +109,8 @@ class Tokenizer:
             result += self.current_char
             self.advance()
             
-        if hasattr(self, 'verbose') and self.verbose:
-            print(f"Tokenizing identifier/keyword: '{result}'")
+        # if hasattr(self, 'verbose') and self.verbose:
+        print(f"Tokenizing identifier/keyword: '{result}'")
         
         if result in keywords:
             print(f"Recognized as keyword: {keywords[result]}")  # Debug output
@@ -124,8 +124,8 @@ class Tokenizer:
         while self.current_char is not None and self.current_char.isdigit():
             result += self.current_char
             self.advance()
-        if hasattr(self, 'verbose') and self.verbose:
-            print(f"Tokenized number: {result} at position {start_position}, line {start_line}")
+        # if hasattr(self, 'verbose') and self.verbose:
+        print(f"Tokenized number: {result} at position {start_position}, line {start_line}")
         return Token('NUMBER', int(result), start_position, start_line)
 
     def string(self):
@@ -155,8 +155,8 @@ class Tokenizer:
             return Token('OPERATOR', result, start_position, start_line)
 
         # Only print if verbose mode is enabled
-        if hasattr(self, 'verbose') and self.verbose:
-            print(f"Tokenized operator: {char} at position {start_position}, line {start_line}")
+        # if hasattr(self, 'verbose') and self.verbose:
+        print(f"Tokenized operator: {char} at position {start_position}, line {start_line}")
         return Token('OPERATOR', char, start_position, start_line)
 
     def null_literal(self):
