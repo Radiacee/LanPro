@@ -177,10 +177,27 @@ class Evaluator:
             elif node_type == 'FunctionDeclaration':
                 if self.verbose:
                     self.console.print(f"[magenta]Declaring function '{node['name']}'[/magenta]")
+                # Define a callable function object
+                def user_function(*args):
+                    original_variables = self.memory_manager.variables.copy()
+                    for param, arg in zip(node['parameters'], args):
+                        self.memory_manager.allocate(param, arg)
+                    result = None
+                    for statement in node['body']['body']:
+                        result = self.evaluate(statement)
+                        # Handle return
+                        if isinstance(result, dict) and result.get('type') == 'Return':
+                            self.memory_manager.variables = original_variables
+                            return result['value']
+                    self.memory_manager.variables = original_variables
+                    return result
+                # Store in both self.functions and memory_manager for compatibility
                 self.functions[node['name']] = {
                     'parameters': node['parameters'],
                     'body': node['body']
                 }
+                self.memory_manager.allocate(node['name'], user_function)
+                return None
             elif node_type == 'ClassDeclaration':
                 # Register the class and its methods
                 self.classes[node['name']] = {m['name']: m for m in node['methods']}

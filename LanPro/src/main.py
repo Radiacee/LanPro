@@ -31,6 +31,10 @@ def main():
     memory_manager.allocate('print', lanpro_print)
     
     evaluator = Evaluator(memory_manager)
+    
+    def lanpro_input(*args):
+        return input(*args)
+    memory_manager.allocate('input', lanpro_input)
 
     if args.file:
         # Read and execute the script file

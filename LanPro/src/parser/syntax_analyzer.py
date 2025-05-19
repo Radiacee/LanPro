@@ -240,6 +240,17 @@ class SyntaxAnalyzer:
             token = self.current_token
             self.advance()
             node = {'type': 'Identifier', 'name': token.value, 'line': token.line}
+            # Handle function call: identifier followed by '('
+            if self.current_token is not None and self.current_token.type == 'OPERATOR' and self.current_token.value == '(':
+                self.eat('OPERATOR')  # eat '('
+                arguments = self.argument_list()
+                self.eat('OPERATOR')  # eat ')'
+                node = {
+                    'type': 'FunctionCall',
+                    'name': token.value,
+                    'arguments': arguments,
+                    'line': token.line
+                }
         elif self.current_token.type == 'NEW':
             token = self.current_token
             self.advance()
@@ -276,6 +287,20 @@ class SyntaxAnalyzer:
                 raise SyntaxError(f"Expected ')' but got '{self.current_token.value}'")
             self.advance()  # eat ')'
             node = expr
+        elif self.current_token.type == 'OPERATOR' and self.current_token.value == '[':
+            self.eat('OPERATOR')  # eat '['
+            elements = []
+            if self.current_token.type != 'OPERATOR' or self.current_token.value != ']':
+                elements.append(self.expression())
+                while self.current_token.type == 'OPERATOR' and self.current_token.value == ',':
+                    self.eat('OPERATOR')
+                    elements.append(self.expression())
+            self.eat('OPERATOR')  # eat ']'
+            node = {
+                'type': 'ListLiteral',
+                'elements': elements,
+                'line': self.current_token.line
+            }
         else:
             raise SyntaxError(f"Unexpected token: {self.current_token.type} with value {self.current_token.value}")
 
