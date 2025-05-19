@@ -49,7 +49,7 @@ class SemanticAnalyzer:
                 self.visit(statement)
         elif node['type'] == 'FunctionCall':
             # Check if it's a built-in function
-            if node['name'] in ['print', 'input', 'free', 'help', 'stop_tasks']:
+            if node['name'] in ['print', 'input', 'free', 'help', 'st']:
                 for argument in node['arguments']:
                     self.visit(argument)
             else:

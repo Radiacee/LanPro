@@ -25,7 +25,7 @@ class Evaluator:
         self.debug = debug
         self.console.print(f"[bold yellow]Evaluator Debug Mode Set To: {self.debug}[/bold yellow]")
 
-    def stop_tasks(self):
+    def st(self):
         """Stop all scheduled tasks"""
         self.running = False
         for task in self.scheduled_tasks:
@@ -153,7 +153,7 @@ class Evaluator:
                 if self.verbose:
                     self.console.print(f"[magenta]Calling function '{node['name']}' with args: {node['arguments']}[/magenta]")
                 # Check if it's a built-in function first
-                if node['name'] in ['print', 'input', 'free', 'help', 'stop_tasks']:
+                if node['name'] in ['print', 'input', 'free', 'help', 'st']:
                     return self.evaluate_function(node['name'], node['arguments'], line)
                 # Then check if it's a callable in memory
                 try:
@@ -296,8 +296,8 @@ class Evaluator:
         elif function_name == "input":
             prompt = self.evaluate(arguments[0]) if arguments else ""
             return input(prompt)
-        elif function_name == "stop_tasks":
-            self.stop_tasks()
+        elif function_name == "st":
+            self.st()
             return None
         elif function_name == "free":
             if len(arguments) != 1 or not isinstance(arguments[0], dict) or arguments[0]['type'] != 'Identifier':
