@@ -223,27 +223,67 @@ class SyntaxAnalyzer:
         return node
 
     def primary(self):
+        # Parse the base expression first
         if self.current_token.type == 'NUMBER':
             token = self.current_token
             self.advance()
-            return {'type': 'Literal', 'value': token.value, 'line': token.line}
+            node = {'type': 'Literal', 'value': token.value, 'line': token.line}
         elif self.current_token.type == 'STRING':
             token = self.current_token
             self.advance()
-            return {'type': 'Literal', 'value': token.value, 'line': token.line}
+            node = {'type': 'Literal', 'value': token.value, 'line': token.line}
         elif self.current_token.type == 'IDENTIFIER':
             token = self.current_token
             self.advance()
-            return {'type': 'Identifier', 'name': token.value, 'line': token.line}
+            node = {'type': 'Identifier', 'name': token.value, 'line': token.line}
+        elif self.current_token.type == 'NEW':
+            token = self.current_token
+            self.advance()
+            class_name = self.current_token.value
+            self.eat('IDENTIFIER')
+            self.eat('OPERATOR')  # (
+            self.eat('OPERATOR')  # )
+            node = {
+                'type': 'NewExpression',
+                'class': class_name,
+                'line': token.line
+            }
         elif self.current_token.type == 'OPERATOR' and self.current_token.value == '(':
             self.advance()  # eat '('
             expr = self.expression()
             if self.current_token.type != 'OPERATOR' or self.current_token.value != ')':
                 raise SyntaxError(f"Expected ')' but got '{self.current_token.value}'")
             self.advance()  # eat ')'
-            return expr
+            node = expr
         else:
             raise SyntaxError(f"Unexpected token: {self.current_token.type} with value {self.current_token.value}")
+
+        # Handle member access and method calls
+        while self.current_token is not None and self.current_token.type == 'OPERATOR' and self.current_token.value == '.':
+            self.eat('OPERATOR')  # eat '.'
+            member_name = self.current_token.value
+            self.eat('IDENTIFIER')
+            if self.current_token is not None and self.current_token.type == 'OPERATOR' and self.current_token.value == '(':
+                self.eat('OPERATOR')  # eat '('
+                arguments = self.argument_list()
+                self.eat('OPERATOR')  # eat ')'
+                node = {
+                    'type': 'MethodCall',
+                    'object': node,
+                    'member': member_name,
+                    'arguments': arguments,
+                    'line': node.get('line')
+                }
+            else:
+                node = {
+                    'type': 'MemberAccess',
+                    'object': node,
+                    'member': member_name,
+                    'line': node.get('line')
+                }
+        return node
+        
+        
 
     def expression(self):
         print(f"Parsing expression at position {self.current_token.position}, line {self.current_token.line}, token: {self.current_token}")
