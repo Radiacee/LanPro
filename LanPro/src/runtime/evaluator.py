@@ -96,8 +96,9 @@ class Evaluator:
                 right = self.evaluate(node['right'])
                 operator = node['operator']
                 if operator == '+':
-                    if isinstance(left, str) or isinstance(right, str):
-                        result = str(left) + str(right)  # Adjusted to match current behavior
+                    # Only allow string + string or number + number
+                    if isinstance(left, str) and isinstance(right, str):
+                        result = left + right
                     elif isinstance(left, (int, float)) and isinstance(right, (int, float)):
                         result = left + right
                     else:
