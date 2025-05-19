@@ -30,6 +30,15 @@ def main():
         console.print(*args)
     memory_manager.allocate('print', lanpro_print)
     
+    def lanpro_free(var):
+        # Accepts variable name as string or identifier node
+        if isinstance(var, dict) and var.get('type') == 'Identifier':
+            var_name = var['name']
+        else:
+            var_name = var
+        memory_manager.deallocate(var_name)
+    memory_manager.allocate('free', lanpro_free)
+    
     evaluator = Evaluator(memory_manager)
     
     def lanpro_input(*args):

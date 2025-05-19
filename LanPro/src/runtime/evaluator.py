@@ -153,7 +153,10 @@ class Evaluator:
                 if self.verbose:
                     self.console.print(f"[magenta]Calling function '{node['name']}' with args: {node['arguments']}[/magenta]")
                 func = self.memory_manager.get(node['name'])
-                if callable(func):
+                # Special-case for 'free': pass the identifier node itself, not its evaluated value
+                if node['name'] == 'free' and node['arguments']:
+                    return func(node['arguments'][0])
+                elif callable(func):
                     evaluated_args = [self.evaluate(arg) for arg in node['arguments']]
                     return func(*evaluated_args)
                 return self.evaluate_function(node['name'], node['arguments'], line)
