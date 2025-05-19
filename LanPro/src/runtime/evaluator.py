@@ -4,6 +4,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, Future
 from threading import Timer
 from rich.console import Console
+from rich.panel import Panel
 
 class Evaluator:
     def __init__(self, memory_manager):
@@ -151,10 +152,17 @@ class Evaluator:
             elif node_type == 'FunctionCall':
                 if self.verbose:
                     self.console.print(f"[magenta]Calling function '{node['name']}' with args: {node['arguments']}[/magenta]")
-                func = self.memory_manager.get(node['name'])
-                if callable(func):
-                    evaluated_args = [self.evaluate(arg) for arg in node['arguments']]
-                    return func(*evaluated_args)
+                # Check if it's a built-in function first
+                if node['name'] in ['print', 'input', 'free', 'help', 'stop_tasks']:
+                    return self.evaluate_function(node['name'], node['arguments'], line)
+                # Then check if it's a callable in memory
+                try:
+                    func = self.memory_manager.get(node['name'])
+                    if callable(func):
+                        evaluated_args = [self.evaluate(arg) for arg in node['arguments']]
+                        return func(*evaluated_args)
+                except KeyError:
+                    pass  # Function not found in memory, continue to evaluate_function
                 return self.evaluate_function(node['name'], node['arguments'], line)
             elif node_type == 'LambdaExpression':
                     # Return a callable lambda object (closure)
@@ -284,6 +292,7 @@ class Evaluator:
             if self.verbose:
                 self.console.print(f"[magenta]Printing arguments: {evaluated_args}[/magenta]")
             print(*evaluated_args)
+            return None
         elif function_name == "input":
             prompt = self.evaluate(arguments[0]) if arguments else ""
             return input(prompt)
@@ -295,6 +304,7 @@ class Evaluator:
                 raise ValueError(f"free() expects a single variable name as argument at line {line}")
             var_name = arguments[0]['name']
             self.memory_manager.deallocate(var_name)
+            return None
         elif function_name == "help":
             help_text = """
 [bold green]LanPro Built-in Help[/bold green]
@@ -303,7 +313,7 @@ Available Commands and Features:
   - Arithmetic: y = x + 5; (Supports +, -, *, /, <, >, <=, >=, ==, !=)
   - print(x);              (Print variable or value)
   - free(x);               (Deallocate a variable)
-  - help();                  (Display this help message)
+  - help();                (Display this help message)
   - parallel{} (execute a function in parallel)
   - schedule{} (execute a function every x seconds or after x seconds)
 Running scripts:
@@ -316,7 +326,8 @@ Running scripts:
             self.console.print(Panel(help_text, expand=False))
             return None  # Return None to indicate no further evaluation needed
 
-        elif function_name in self.functions:
+        # Handle user-defined functions
+        if function_name in self.functions:
             function = self.functions[function_name]
             parameters = function['parameters']
             body = function['body']
@@ -367,5 +378,3 @@ Running scripts:
         # Wait for all parallel executions to complete
         for future in all_futures:
             future.result()  # This will raise any exceptions that occurred in the parallel blocks
-
-from rich.panel import Panel

@@ -48,8 +48,16 @@ class SemanticAnalyzer:
             for statement in node['body']:
                 self.visit(statement)
         elif node['type'] == 'FunctionCall':
-            for argument in node['arguments']:
-                self.visit(argument)
+            # Check if it's a built-in function
+            if node['name'] in ['print', 'input', 'free', 'help', 'stop_tasks']:
+                for argument in node['arguments']:
+                    self.visit(argument)
+            else:
+                # For user-defined functions, check if they exist
+                if node['name'] not in self.declared_functions:
+                    raise Exception(f"Undefined function: '{node['name']}'")
+                for argument in node['arguments']:
+                    self.visit(argument)
         elif node['type'] == 'BinaryOperation':
             self.visit(node['left'])
             self.visit(node['right'])

@@ -232,6 +232,10 @@ class SyntaxAnalyzer:
             token = self.current_token
             self.advance()
             node = {'type': 'Literal', 'value': token.value, 'line': token.line}
+        elif self.current_token.type == 'NULL':
+            token = self.current_token
+            self.advance()
+            node = {'type': 'Literal', 'value': None, 'line': token.line}
         elif self.current_token.type == 'IDENTIFIER':
             token = self.current_token
             self.advance()
@@ -247,6 +251,23 @@ class SyntaxAnalyzer:
                 'type': 'NewExpression',
                 'class': class_name,
                 'line': token.line
+            }
+        elif self.current_token.type == 'OPERATOR' and self.current_token.value == '[':
+            start_line = self.current_token.line
+            self.advance()  # eat '['
+            elements = []
+            if self.current_token.type != 'OPERATOR' or self.current_token.value != ']':
+                elements.append(self.expression())
+                while self.current_token.type == 'OPERATOR' and self.current_token.value == ',':
+                    self.advance()  # eat ','
+                    elements.append(self.expression())
+            if self.current_token.type != 'OPERATOR' or self.current_token.value != ']':
+                raise SyntaxError(f"Expected ']' but got '{self.current_token.value}'")
+            self.advance()  # eat ']'
+            node = {
+                'type': 'ArrayLiteral',
+                'elements': elements,
+                'line': start_line
             }
         elif self.current_token.type == 'OPERATOR' and self.current_token.value == '(':
             self.advance()  # eat '('
