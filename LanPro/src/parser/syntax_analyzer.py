@@ -35,6 +35,10 @@ class SyntaxAnalyzer:
             return self.while_statement()
         elif self.current_token.type == 'FOR':
             return self.for_statement()
+        elif self.current_token.type == 'PARALLEL':
+            return self.parallel_statement()
+        elif self.current_token.type == 'SCHEDULE':
+            return self.schedule_statement()
         elif self.current_token.type == 'IDENTIFIER' and self.current_token.value == 'function':
             return self.function_declaration()
         elif self.current_token.type == 'IDENTIFIER' and self.current_token.value == 'return':
@@ -360,3 +364,41 @@ class SyntaxAnalyzer:
 
     def error(self, message):
         raise SyntaxError(message)
+
+    def parallel_statement(self):
+        self.eat('PARALLEL')
+        body = self.block()
+        return {
+            'type': 'ParallelStatement',
+            'body': body,
+            'line': self.current_token.line if self.current_token else None
+        }
+
+    def schedule_statement(self):
+        print(f"Parsing schedule statement at position {self.current_token.position}, line {self.current_token.line}")
+        self.eat('SCHEDULE')
+        body = self.block()
+        
+        # Check for timing specifier
+        if self.current_token.type == 'EVERY':
+            self.eat('EVERY')  # Eat the EVERY token
+            interval = self.expression()
+            schedule_type = 'recurring'
+        elif self.current_token.type == 'AFTER':
+            self.eat('AFTER')  # Eat the AFTER token
+            interval = self.expression()
+            schedule_type = 'delayed'
+        else:
+            raise SyntaxError(f"Expected 'every' or 'after' after schedule block at line {self.current_token.line}")
+        
+        # Eat the semicolon if present
+        if self.current_token and self.current_token.type == 'OPERATOR' and self.current_token.value == ';':
+            self.eat('OPERATOR')
+        
+        return {
+            'type': 'ScheduleStatement',
+            'body': body,
+            'interval': interval,
+            'schedule_type': schedule_type,
+            'line': self.current_token.line if self.current_token else None
+        }

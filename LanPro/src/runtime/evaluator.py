@@ -1,3 +1,10 @@
+import asyncio
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor, Future
+from threading import Timer
+from rich.console import Console
+
 class Evaluator:
     def __init__(self, memory_manager):
         self.memory_manager = memory_manager
@@ -5,26 +12,59 @@ class Evaluator:
         self.verbose = False
         self.debug = False
         self.classes = {}
+        self.thread_pool = ThreadPoolExecutor(max_workers=10)  # Limit concurrent threads
+        self.scheduled_tasks = []  # Keep track of scheduled tasks
+        self.running = True  # Flag to control task execution
+        self.console = Console()
 
     def set_verbose(self, verbose):
         self.verbose = verbose
 
     def set_debug(self, debug):
         self.debug = debug
-        console.print(f"[bold yellow]Evaluator Debug Mode Set To: {self.debug}[/bold yellow]")
+        self.console.print(f"[bold yellow]Evaluator Debug Mode Set To: {self.debug}[/bold yellow]")
+
+    def stop_tasks(self):
+        """Stop all scheduled tasks"""
+        self.running = False
+        for task in self.scheduled_tasks:
+            if hasattr(task, 'cancel'):
+                task.cancel()
+        self.scheduled_tasks.clear()
+        self.console.print("[yellow]All scheduled tasks stopped[/yellow]")
+
+    def schedule_task(self, body, interval, schedule_type):
+        """Schedule a task to run either recurring or delayed"""
+        def task_wrapper():
+            if schedule_type == 'recurring':
+                while self.running:
+                    self.evaluate(body)
+                    time.sleep(interval)
+            else:  # delayed
+                time.sleep(interval)
+                if self.running:
+                    self.evaluate(body)
+
+        task = threading.Thread(target=task_wrapper, daemon=True)
+        task.start()
+        self.scheduled_tasks.append(task)
+        return task
 
     def evaluate(self, node):
+        if not self.running:
+            return None
+            
         if self.verbose and isinstance(node, dict):
-            console.print(f"[magenta]Evaluating node: {node}[/magenta]")
+            self.console.print(f"[magenta]Evaluating node: {node}[/magenta]")
 
         if isinstance(node, int):
             if self.verbose:
-                console.print(f"[magenta]Evaluated to integer: {node}[/magenta]")
+                self.console.print(f"[magenta]Evaluated to integer: {node}[/magenta]")
             return node
         elif isinstance(node, str):
             value = self.memory_manager.get(node)
             if self.verbose:
-                console.print(f"[magenta]Evaluated identifier '{node}' to: {value}[/magenta]")
+                self.console.print(f"[magenta]Evaluated identifier '{node}' to: {value}[/magenta]")
             return value
         elif isinstance(node, dict):
             node_type = node.get('type')
@@ -37,20 +77,20 @@ class Evaluator:
                 else:
                     result = value
                 if self.verbose:
-                    console.print(f"[magenta]Evaluated Literal to: {result}[/magenta]")
+                    self.console.print(f"[magenta]Evaluated Literal to: {result}[/magenta]")
                 return result
             elif node_type == 'Identifier':
                 result = self.memory_manager.get(node['name'])
                 if self.verbose:
-                    console.print(f"[magenta]Evaluated Identifier '{node['name']}' to: {result}[/magenta]")
+                    self.console.print(f"[magenta]Evaluated Identifier '{node['name']}' to: {result}[/magenta]")
                 return result
             elif node_type == 'NULL':
                 if self.verbose:
-                    console.print("[magenta]Evaluated NULL to: None[/magenta]")
+                    self.console.print("[magenta]Evaluated NULL to: None[/magenta]")
                 return None
             elif node_type == 'BinaryOperation':
                 if self.verbose:
-                    console.print(f"[magenta]Evaluating BinaryOperation: {node['operator']}[/magenta]")
+                    self.console.print(f"[magenta]Evaluating BinaryOperation: {node['operator']}[/magenta]")
                 left = self.evaluate(node['left'])
                 right = self.evaluate(node['right'])
                 operator = node['operator']
@@ -93,11 +133,11 @@ class Evaluator:
                 else:
                     raise ValueError(f"Unknown operator: {operator} at line {line}")
                 if self.verbose:
-                    console.print(f"[magenta]Evaluated {left} {operator} {right} to: {result}[/magenta]")
+                    self.console.print(f"[magenta]Evaluated {left} {operator} {right} to: {result}[/magenta]")
                 return result
             elif node_type == 'AssignmentStatement':
                 if self.verbose:
-                    console.print(f"[magenta]Assigning to '{node['identifier']}'[/magenta]")
+                    self.console.print(f"[magenta]Assigning to '{node['identifier']}'[/magenta]")
                 value = self.evaluate(node['value'])
                 if value is None:
                     if self.memory_manager.exists(node['identifier']):
@@ -107,10 +147,10 @@ class Evaluator:
                 else:
                     self.memory_manager.allocate(node['identifier'], value)
                 if self.verbose:
-                    console.print(f"[magenta]Assigned value: {value} to '{node['identifier']}'[/magenta]")
+                    self.console.print(f"[magenta]Assigned value: {value} to '{node['identifier']}'[/magenta]")
             elif node_type == 'FunctionCall':
                 if self.verbose:
-                    console.print(f"[magenta]Calling function '{node['name']}' with args: {node['arguments']}[/magenta]")
+                    self.console.print(f"[magenta]Calling function '{node['name']}' with args: {node['arguments']}[/magenta]")
                 func = self.memory_manager.get(node['name'])
                 if callable(func):
                     evaluated_args = [self.evaluate(arg) for arg in node['arguments']]
@@ -128,7 +168,7 @@ class Evaluator:
                 return lambda_func
             elif node_type == 'FunctionDeclaration':
                 if self.verbose:
-                    console.print(f"[magenta]Declaring function '{node['name']}'[/magenta]")
+                    self.console.print(f"[magenta]Declaring function '{node['name']}'[/magenta]")
                 self.functions[node['name']] = {
                     'parameters': node['parameters'],
                     'body': node['body']
@@ -163,21 +203,38 @@ class Evaluator:
                 return result
             elif node_type == 'ReturnStatement':
                 if self.verbose:
-                    console.print("[magenta]Evaluating return statement[/magenta]")
+                    self.console.print("[magenta]Evaluating return statement[/magenta]")
                 return self.evaluate(node['value'])
             elif node_type == 'ListLiteral':
                 return [self.evaluate(element) for element in node['elements']]
             elif node_type == 'Block':
                 if self.verbose:
-                    console.print("[magenta]Entering Block[/magenta]")
+                    self.console.print("[magenta]Entering Block[/magenta]")
                 for statement in node['body']:
                     result = self.evaluate(statement)
                     if isinstance(result, dict) and result.get('type') == 'ReturnStatement':
                         if self.verbose:
-                            console.print("[magenta]Exiting Block with return[/magenta]")
+                            self.console.print("[magenta]Exiting Block with return[/magenta]")
                         return result
                 if self.verbose:
-                    console.print("[magenta]Exiting Block[/magenta]")
+                    self.console.print("[magenta]Exiting Block[/magenta]")
+            elif node_type == 'ParallelStatement':
+                if self.verbose:
+                    self.console.print("[magenta]Executing parallel block[/magenta]")
+                # Submit each statement in the block to run concurrently
+                futures = []
+                for statement in node['body']['body']:
+                    future = self.thread_pool.submit(self.evaluate, statement)
+                    futures.append(future)
+                return futures  # Return list of futures for result collection
+            elif node_type == 'ScheduleStatement':
+                if self.verbose:
+                    self.console.print("[magenta]Setting up scheduled task[/magenta]")
+                interval = self.evaluate(node['interval'])
+                if not isinstance(interval, (int, float)):
+                    raise ValueError(f"Schedule interval must be a number, got {type(interval).__name__} at line {line}")
+                self.schedule_task(node['body'], interval, node['schedule_type'])
+                return None
             else:
                 return self.evaluate_control_structure(node)
         else:
@@ -188,53 +245,57 @@ class Evaluator:
         line = node.get('line')
         if node_type == 'IfStatement':
             if self.verbose:
-                console.print("[magenta]Evaluating IfStatement condition[/magenta]")
+                self.console.print("[magenta]Evaluating IfStatement condition[/magenta]")
             condition = self.evaluate(node['condition'])
             if condition:
                 if self.verbose:
-                    console.print("[magenta]Condition true, entering then branch[/magenta]")
+                    self.console.print("[magenta]Condition true, entering then branch[/magenta]")
                 return self.evaluate(node['thenBranch'])
             elif node['elseBranch'] is not None:
                 if self.verbose:
-                    console.print("[magenta]Condition false, entering else branch[/magenta]")
+                    self.console.print("[magenta]Condition false, entering else branch[/magenta]")
                 return self.evaluate(node['elseBranch'])
         elif node_type == 'WhileStatement':
             if self.verbose:
-                console.print("[magenta]Entering WhileStatement loop[/magenta]")
+                self.console.print("[magenta]Entering WhileStatement loop[/magenta]")
             while self.evaluate(node['condition']):
                 self.evaluate(node['body'])
             if self.verbose:
-                console.print("[magenta]Exiting WhileStatement loop[/magenta]")
+                self.console.print("[magenta]Exiting WhileStatement loop[/magenta]")
         elif node_type == 'ForStatement':
             if self.verbose:
-                console.print("[magenta]Entering ForStatement loop[/magenta]")
+                self.console.print("[magenta]Entering ForStatement loop[/magenta]")
             iterable = self.evaluate(node['iterable'])
+            if not isinstance(iterable, (list, tuple, range)):
+                raise ValueError(f"For loop expects an iterable, got {type(iterable).__name__} at line {line}")
             for value in iterable:
                 self.memory_manager.allocate(node['identifier'], value)
                 self.evaluate(node['body'])
             if self.verbose:
-                console.print("[magenta]Exiting ForStatement loop[/magenta]")
+                self.console.print("[magenta]Exiting ForStatement loop[/magenta]")
         else:
             raise ValueError(f"Unknown control structure type: {node_type} at line {line}")
 
     def evaluate_function(self, function_name, arguments, line):
         if self.verbose:
-            console.print(f"[magenta]Evaluating function call '{function_name}'[/magenta]")
+            self.console.print(f"[magenta]Evaluating function call '{function_name}'[/magenta]")
         if function_name == "print":
             evaluated_args = [self.evaluate(arg) for arg in arguments]
             if self.verbose:
-                console.print(f"[magenta]Printing arguments: {evaluated_args}[/magenta]")
+                self.console.print(f"[magenta]Printing arguments: {evaluated_args}[/magenta]")
             print(*evaluated_args)
         elif function_name == "input":
-            if not arguments:
-                return input()
-            raise ValueError(f"input() function does not accept arguments at line {line}")
+            prompt = self.evaluate(arguments[0]) if arguments else ""
+            return input(prompt)
+        elif function_name == "stop_tasks":
+            self.stop_tasks()
+            return None
         elif function_name == "free":
             if len(arguments) != 1 or not isinstance(arguments[0], dict) or arguments[0]['type'] != 'Identifier':
                 raise ValueError(f"free() expects a single variable name as argument at line {line}")
             var_name = arguments[0]['name']
             self.memory_manager.deallocate(var_name)
-        elif function_name =="help":
+        elif function_name == "help":
             help_text = """
 [bold green]LanPro Built-in Help[/bold green]
 Available Commands and Features:
@@ -243,11 +304,16 @@ Available Commands and Features:
   - print(x);              (Print variable or value)
   - free(x);               (Deallocate a variable)
   - help();                  (Display this help message)
-  - Variables: Dynamic allocation with garbage collection
-  - Control Structures: if, while, for (syntax varies by implementation)
+  - parallel{} (execute a function in parallel)
+  - schedule{} (execute a function every x seconds or after x seconds)
+Running scripts:
+    - python main.py -f <script_name>
+    - python main.py --file <script_name>
+    - python main.py -f <script_name> --verbose
+    - python main.py -f <script_name> --debug
 
 """
-            console.print(Panel(help_text, expand=False))
+            self.console.print(Panel(help_text, expand=False))
             return None  # Return None to indicate no further evaluation needed
 
         elif function_name in self.functions:
@@ -259,7 +325,7 @@ Available Commands and Features:
                 raise ValueError(f"Function '{function_name}' expects {len(parameters)} arguments, but got {len(arguments)} at line {line}")
 
             if self.verbose:
-                console.print(f"[magenta]Setting up function '{function_name}' with parameters: {parameters}[/magenta]")
+                self.console.print(f"[magenta]Setting up function '{function_name}' with parameters: {parameters}[/magenta]")
             original_variables = self.memory_manager.variables.copy()
             for param, arg in zip(parameters, arguments):
                 self.memory_manager.allocate(param, self.evaluate(arg))
@@ -270,29 +336,36 @@ Available Commands and Features:
 
             self.memory_manager.variables = original_variables
             if self.verbose:
-                console.print(f"[magenta]Function '{function_name}' returned: {result}[/magenta]")
+                self.console.print(f"[magenta]Function '{function_name}' returned: {result}[/magenta]")
             return result
         else:
             raise ValueError(f"Unknown function: {function_name} at line {line}")
 
     def run(self, program):
+        all_futures = []  # Store all parallel execution futures
         for statement in program['body']:
             if self.verbose:
-                console.print(f"[magenta]Running statement: {statement}[/magenta]")
-            self.evaluate(statement)
+                self.console.print(f"[magenta]Running statement: {statement}[/magenta]")
+            result = self.evaluate(statement)
+            if isinstance(result, Future):
+                all_futures.append(result)
+            elif isinstance(result, list) and all(isinstance(f, Future) for f in result):
+                all_futures.extend(result)
             if self.debug:
-                console.print("[yellow]Debug: Variable States:[/yellow]")
+                self.console.print("[yellow]Debug: Variable States:[/yellow]")
                 for var_name, info in self.memory_manager.variables.items():
                     if var_name not in self.memory_manager.deleted_vars:
-                        console.print(f"[yellow]  {var_name} = {info['value']} (ref_count: {info['ref_count']})[/yellow]")
-                console.print(f"[yellow]Debug: Memory Usage - Active Variables: {len([v for v in self.memory_manager.variables if v not in self.memory_manager.deleted_vars])}[/yellow]")
-                console.print(f"[yellow]Debug: Deleted Variables: {self.memory_manager.deleted_vars}[/yellow]")
+                        self.console.print(f"[yellow]  {var_name} = {info['value']} (ref_count: {info['ref_count']})[/yellow]")
+                self.console.print(f"[yellow]Debug: Memory Usage - Active Variables: {len([v for v in self.memory_manager.variables if v not in self.memory_manager.deleted_vars])}[/yellow]")
+                self.console.print(f"[yellow]Debug: Deleted Variables: {self.memory_manager.deleted_vars}[/yellow]")
             else:
-                console.print("[yellow]Debug Mode Off: Skipping variable states and memory usage[/yellow]")
+                self.console.print("[yellow]Debug Mode Off: Skipping variable states and memory usage[/yellow]")
             self.memory_manager.run_gc()
             if self.verbose:
-                console.print("[magenta]Garbage collection completed[/magenta]")
+                self.console.print("[magenta]Garbage collection completed[/magenta]")
+        
+        # Wait for all parallel executions to complete
+        for future in all_futures:
+            future.result()  # This will raise any exceptions that occurred in the parallel blocks
 
-from rich.console import Console
 from rich.panel import Panel
-console = Console()

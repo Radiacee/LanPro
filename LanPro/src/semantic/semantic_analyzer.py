@@ -24,6 +24,15 @@ class SemanticAnalyzer:
         elif node['type'] == 'WhileStatement':
             self.visit(node['condition'])
             self.visit(node['body'])
+        elif node['type'] == 'ForStatement':
+            self.declared_variables.add(node['identifier'])
+            self.visit(node['iterable'])
+            self.visit(node['body'])
+        elif node['type'] == 'ParallelStatement':
+            self.visit(node['body'])
+        elif node['type'] == 'ScheduleStatement':
+            self.visit(node['body'])
+            self.visit(node['interval'])
         elif node['type'] == 'NewExpression':
             pass
         elif node['type'] == 'MethodCall':
