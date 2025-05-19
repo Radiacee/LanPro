@@ -1,0 +1,8 @@
+parallel { print(1); }
+parallel { print(2); }
+
+parallel {
+    for (i in [1, 2, 3]) {
+        print("Thread 1:", i);
+    }
+}

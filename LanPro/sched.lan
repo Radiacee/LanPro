@@ -1,0 +1,3 @@
+schedule {
+    print("Hello, World!");
+} every 5;

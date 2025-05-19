@@ -45,6 +45,9 @@ def main():
         return input(*args)
     memory_manager.allocate('input', lanpro_input)
 
+    # Register stop_tasks function
+    memory_manager.allocate('stop_tasks', evaluator.stop_tasks)
+
     if args.file:
         # Read and execute the script file
         try:

@@ -1,0 +1,9 @@
+class Person {
+    greet() {
+        print("Hello");
+    }
+}
+
+p = new Person();
+
+p.greet(); 
