@@ -222,110 +222,37 @@ class SyntaxAnalyzer:
             self.eat('OPERATOR')
         return node
 
+    def primary(self):
+        if self.current_token.type == 'NUMBER':
+            token = self.current_token
+            self.advance()
+            return {'type': 'Literal', 'value': token.value, 'line': token.line}
+        elif self.current_token.type == 'STRING':
+            token = self.current_token
+            self.advance()
+            return {'type': 'Literal', 'value': token.value, 'line': token.line}
+        elif self.current_token.type == 'IDENTIFIER':
+            token = self.current_token
+            self.advance()
+            return {'type': 'Identifier', 'name': token.value, 'line': token.line}
+        elif self.current_token.type == 'OPERATOR' and self.current_token.value == '(':
+            self.advance()  # eat '('
+            expr = self.expression()
+            if self.current_token.type != 'OPERATOR' or self.current_token.value != ')':
+                raise SyntaxError(f"Expected ')' but got '{self.current_token.value}'")
+            self.advance()  # eat ')'
+            return expr
+        else:
+            raise SyntaxError(f"Unexpected token: {self.current_token.type} with value {self.current_token.value}")
+
     def expression(self):
         print(f"Parsing expression at position {self.current_token.position}, line {self.current_token.line}, token: {self.current_token}")
-
-        # --- NEW: Handle 'new' keyword for object instantiation ---
-        if self.current_token.type == 'NEW':
-            self.eat('NEW')
-            class_name = self.current_token.value
-            self.eat('IDENTIFIER')
-            self.eat('OPERATOR')  # (
-            self.eat('OPERATOR')  # )
-            left = {'type': 'NewExpression', 'class': class_name, 'line': self.current_token.line}
-        # --- END NEW ---
-        
-        if self.current_token.type == 'OPERATOR' and self.current_token.value == '(':
-            self.eat('OPERATOR')  # (
-            params = []
-            if self.current_token.type == 'IDENTIFIER':
-                params.append(self.current_token.value)
-                self.eat('IDENTIFIER')
-                while self.current_token.type == 'OPERATOR' and self.current_token.value == ',':
-                    self.eat('OPERATOR')
-                    params.append(self.current_token.value)
-                    self.eat('IDENTIFIER')
-            self.eat('OPERATOR')  # )
-            if self.current_token.type == 'OPERATOR' and self.current_token.value == '=>':
-                self.eat('OPERATOR')
-                body = self.expression()
-                return {
-                    'type': 'LambdaExpression',
-                    'parameters': params,
-                    'body': body,
-                    'line': self.current_token.line
-                }
-
-        elif self.current_token.type == 'NUMBER':
-            left = {'type': 'Literal', 'value': self.current_token.value, 'line': self.current_token.line}
-            self.advance()
-        elif self.current_token.type == 'IDENTIFIER':
-            identifier = self.current_token
-            self.advance()
-            if self.current_token is not None and self.current_token.type == 'OPERATOR' and self.current_token.value == '(':
-                self.eat('OPERATOR')
-                arguments = self.argument_list()
-                self.eat('OPERATOR')
-                left = {
-                    'type': 'FunctionCall',
-                    'name': identifier.value,
-                    'arguments': arguments,
-                    'line': identifier.line
-                }
-            else:
-                left = {'type': 'Identifier', 'name': identifier.value, 'line': identifier.line}
-        elif self.current_token.type == 'STRING':
-            left = {'type': 'Literal', 'value': self.current_token.value, 'line': self.current_token.line}
-            self.advance()
-        elif self.current_token.type == 'NULL':
-            left = {'type': 'NULL', 'value': None, 'line': self.current_token.line}
-            self.advance()
-        elif self.current_token.type == 'OPERATOR' and self.current_token.value == '[':
-            self.eat('OPERATOR')  # Eat '['
-            elements = []
-            while self.current_token is not None and not (self.current_token.type == 'OPERATOR' and self.current_token.value == ']'):
-                elements.append(self.expression())
-                if self.current_token is not None and self.current_token.type == 'OPERATOR' and self.current_token.value == ',':
-                    self.eat('OPERATOR')  # Eat ','
-                else:
-                    break
-            self.eat('OPERATOR')  # Eat ']'
-            left = {'type': 'ListLiteral', 'elements': elements, 'line': self.current_token.line if self.current_token else None}
-        else:
-            raise SyntaxError(
-                f"Unexpected token '{self.current_token.type}' with value '{self.current_token.value}' at position {self.current_token.position}, line {self.current_token.line}."
-            )
-
-        # --- NEW: Handle member access and method calls (e.g., p.greet or p.greet()) ---
-        while self.current_token is not None and self.current_token.type == 'OPERATOR' and self.current_token.value == '.':
-            self.eat('OPERATOR')
-            member = self.current_token.value
-            self.eat('IDENTIFIER')
-            # Check for method call: p.greet()
-            if self.current_token is not None and self.current_token.type == 'OPERATOR' and self.current_token.value == '(':
-                self.eat('OPERATOR')
-                arguments = self.argument_list()
-                self.eat('OPERATOR')
-                left = {
-                    'type': 'MethodCall',
-                    'object': left,
-                    'member': member,
-                    'arguments': arguments,
-                    'line': self.current_token.line if self.current_token else None
-                }
-            else:
-                left = {
-                    'type': 'MemberAccess',
-                    'object': left,
-                    'member': member,
-                    'line': self.current_token.line if self.current_token else None
-                }
-        # --- END NEW ---
+        left = self.primary()
 
         while self.current_token is not None and self.current_token.type == 'OPERATOR' and self.current_token.value in ['+', '-', '*', '/', '>', '<', '>=', '<=', '==', '!=']:
             operator = self.current_token.value
             self.advance()
-            right = self.expression()
+            right = self.primary()
             left = {
                 'type': 'BinaryOperation',
                 'operator': operator,
