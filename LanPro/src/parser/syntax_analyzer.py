@@ -309,27 +309,38 @@ class SyntaxAnalyzer:
         else:
             raise SyntaxError(f"Unexpected token: {self.current_token.type} with value {self.current_token.value}")
 
-        # Handle member access and method calls
-        while self.current_token is not None and self.current_token.type == 'OPERATOR' and self.current_token.value == '.':
-            self.eat('OPERATOR')  # eat '.'
-            member_name = self.current_token.value
-            self.eat('IDENTIFIER')
-            if self.current_token is not None and self.current_token.type == 'OPERATOR' and self.current_token.value == '(':
-                self.eat('OPERATOR')  # eat '('
-                arguments = self.argument_list()
-                self.eat('OPERATOR')  # eat ')'
+        # Handle member access, method calls, and array indexing
+        while self.current_token is not None and self.current_token.type == 'OPERATOR' and self.current_token.value in ['.', '[']:
+            if self.current_token.value == '.':
+                self.eat('OPERATOR')  # eat '.'
+                member_name = self.current_token.value
+                self.eat('IDENTIFIER')
+                if self.current_token is not None and self.current_token.type == 'OPERATOR' and self.current_token.value == '(':
+                    self.eat('OPERATOR')  # eat '('
+                    arguments = self.argument_list()
+                    self.eat('OPERATOR')  # eat ')'
+                    node = {
+                        'type': 'MethodCall',
+                        'object': node,
+                        'member': member_name,
+                        'arguments': arguments,
+                        'line': node.get('line')
+                    }
+                else:
+                    node = {
+                        'type': 'MemberAccess',
+                        'object': node,
+                        'member': member_name,
+                        'line': node.get('line')
+                    }
+            elif self.current_token.value == '[':
+                self.eat('OPERATOR')  # eat '['
+                index = self.expression()
+                self.eat('OPERATOR')  # eat ']'
                 node = {
-                    'type': 'MethodCall',
-                    'object': node,
-                    'member': member_name,
-                    'arguments': arguments,
-                    'line': node.get('line')
-                }
-            else:
-                node = {
-                    'type': 'MemberAccess',
-                    'object': node,
-                    'member': member_name,
+                    'type': 'ArrayAccess',
+                    'array': node,
+                    'index': index,
                     'line': node.get('line')
                 }
         return node

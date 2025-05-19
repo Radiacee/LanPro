@@ -60,6 +60,9 @@ class SemanticAnalyzer:
         elif node['type'] == 'ListLiteral':
             for element in node['elements']:
                 self.visit(element)
+        elif node['type'] == 'ArrayAccess':
+            self.visit(node['array'])
+            self.visit(node['index'])
         elif node['type'] == 'FunctionDeclaration':
             self.analyze_function_declaration(node)
         elif node['type'] == 'ClassDeclaration':

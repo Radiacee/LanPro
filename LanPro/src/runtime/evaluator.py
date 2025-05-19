@@ -228,6 +228,16 @@ class Evaluator:
                 return self.evaluate(node['value'])
             elif node_type == 'ListLiteral':
                 return [self.evaluate(element) for element in node['elements']]
+            elif node_type == 'ArrayAccess':
+                array = self.evaluate(node['array'])
+                index = self.evaluate(node['index'])
+                if not isinstance(array, (list, tuple)):
+                    raise ValueError(f"Cannot index into non-array type {type(array).__name__} at line {line}")
+                if not isinstance(index, int):
+                    raise ValueError(f"Array index must be an integer, got {type(index).__name__} at line {line}")
+                if index < 0 or index >= len(array):
+                    raise ValueError(f"Array index {index} out of bounds for array of length {len(array)} at line {line}")
+                return array[index]
             elif node_type == 'Block':
                 if self.verbose:
                     self.console.print("[magenta]Entering Block[/magenta]")
