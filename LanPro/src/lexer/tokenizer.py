@@ -93,7 +93,7 @@ class Tokenizer:
             'for': 'FOR',
             'class': 'CLASS',
             'let': 'LET',
-            'new': 'NEW',,
+            'new': 'NEW',
             'in': 'IN',
             'parallel': 'PARALLEL',
             'schedule': 'SCHEDULE',
